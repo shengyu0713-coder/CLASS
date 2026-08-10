@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>班表管理系統(單機離線版)</title>
+<title>班表管理系統</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
 
@@ -128,44 +128,57 @@
 <div class="app" id="app">載入中…</div>
 <div class="toast" id="toast"></div>
 
-<script>
-/* ============ 單機離線儲存(localStorage 模擬 window.storage API) ============ */
-/* 這個版本不透過 Claude.ai 雲端儲存,而是把資料存在「這台電腦、這個瀏覽器」的 localStorage 裡。
-   優點:不需要透過 Claude.ai 也能使用,可以下載後單機離線操作。
-   缺點:資料不會跨裝置、跨瀏覽器同步——換一台電腦或換一個瀏覽器打開,會是空的;
-   也不會跟其他同仁共用,每個人各自看到自己這台電腦存的資料。 */
-(function(){
-  const LS_PREFIX = 'schedule-app-offline:';
-  window.storage = {
-    async get(key, shared){
-      let v;
-      try{ v = localStorage.getItem(LS_PREFIX+key); }
-      catch(e){ throw new Error('localStorage 無法使用:'+e.message); }
-      if(v===null) throw new Error('Key not found: '+key);
-      return {key, value:v, shared};
-    },
-    async set(key, value, shared){
-      try{ localStorage.setItem(LS_PREFIX+key, value); }
-      catch(e){ throw new Error('localStorage 寫入失敗(可能已滿):'+e.message); }
-      return {key, value, shared};
-    },
-    async delete(key, shared){
-      try{ localStorage.removeItem(LS_PREFIX+key); }
-      catch(e){ throw new Error('localStorage 刪除失敗:'+e.message); }
-      return {key, deleted:true, shared};
-    },
-    async list(prefix, shared){
-      const p = LS_PREFIX+(prefix||'');
-      const keys = [];
-      for(let i=0;i<localStorage.length;i++){
-        const k = localStorage.key(i);
-        if(k && k.indexOf(p)===0) keys.push(k.slice(LS_PREFIX.length));
-      }
-      return {keys, prefix, shared};
-    }
-  };
-})();
+<script type="module">
+/* ============ Firebase Firestore 雲端儲存(跨裝置同步共用) ============ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
+const firebaseConfig = {
+  apiKey: "AIzaSyDbAJDGaOhdpso_Lz3VfuaiyzjJT1YsQWs",
+  authDomain: "class-753bc.firebaseapp.com",
+  projectId: "class-753bc",
+  storageBucket: "class-753bc.firebasestorage.app",
+  messagingSenderId: "63017816894",
+  appId: "1:63017816894:web:c93afbf8aa648efd25526f",
+  measurementId: "G-6CYEYEWKLE"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const COLLECTION = 'schedule-app-data';
+
+window.storage = {
+  async get(key, shared){
+    const ref = doc(db, COLLECTION, key);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) throw new Error('Key not found: '+key);
+    return {key, value: snap.data().value, shared};
+  },
+  async set(key, value, shared){
+    const ref = doc(db, COLLECTION, key);
+    await setDoc(ref, {value, shared: !!shared, updatedAt: Date.now()});
+    return {key, value, shared};
+  },
+  async delete(key, shared){
+    const ref = doc(db, COLLECTION, key);
+    await deleteDoc(ref);
+    return {key, deleted:true, shared};
+  },
+  async list(prefix, shared){
+    const col = collection(db, COLLECTION);
+    const snap = await getDocs(col);
+    const keys = [];
+    snap.forEach(d=>{ if(!prefix || d.id.indexOf(prefix)===0) keys.push(d.id); });
+    return {keys, prefix, shared};
+  }
+};
+
+// 通知主程式:雲端儲存已經準備好,可以開始執行 init()
+window.__storageReady = true;
+window.dispatchEvent(new Event('storage-ready'));
+</script>
+
+<script>
 /* ============ 常數 ============ */
 const LEAVE_TYPES = [
   {code:'特',label:'特休'},{code:'事',label:'事假'},{code:'病',label:'病假'},
@@ -667,7 +680,7 @@ function render(){
 function renderTop(){
   return `<div class="top">
     <div class="brand"><div class="mark">班</div>
-      <div><h1>班表管理系統<span style="font-size:12px;color:var(--accent);margin-left:6px;">單機離線版</span></h1><div class="sub">資料存在這台電腦的瀏覽器裡,不會跟其他人同步</div></div>
+      <div><h1>班表管理系統</h1><div class="sub">共用班表・所有人員皆可檢視此頁面上的資料(雲端同步)</div></div>
     </div>
     <div class="month-picker">
       <button id="prevM" title="上個月">‹</button>
@@ -681,7 +694,7 @@ function renderTabs(){
   return '<nav class="tabs">' + tabs.map(([k,l])=>`<button data-tab="${k}" class="${state.activeTab===k?'active':''}">${l}</button>`).join('') + '</nav>';
 }
 function renderFooter(){
-  return `<div class="footer-note">⚠ 單機離線版:資料只存在「這台電腦、這個瀏覽器」裡,換電腦、換瀏覽器、清除瀏覽器資料都會遺失,也不會跟其他同仁共用。<br>排班管理功能需輸入管理密碼才能修改,預設密碼為 ${DEFAULT_PIN}。</div>`;
+  return `<div class="footer-note">資料透過雲端資料庫同步,所有裝置、所有使用者看到的都是同一份最新資料;排班管理功能需輸入管理密碼才能修改,預設密碼為 ${DEFAULT_PIN}。</div>`;
 }
 function renderTabContent(){
   if(state.activeTab==='overview') return renderOverview();
@@ -1374,7 +1387,11 @@ async function init(){
   state.ready = true;
   render();
 }
-init();
+if(window.__storageReady){
+  init();
+}else{
+  window.addEventListener('storage-ready', init, {once:true});
+}
 </script>
 </body>
 </html>
