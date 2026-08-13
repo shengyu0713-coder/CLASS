@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>班表管理系統</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  :root{
+    --bg:#F6F5F0;
+    --surface:#FFFFFF;
+    --ink:#25302B;
+    --ink-soft:#6E7871;
+    --ink-faint:#9AA39C;
+    --primary:#3D6B5C;
+    --primary-dark:#2B4E43;
+    --primary-soft:#DCEAE3;
+    --accent:#C98A3E;
+    --accent-soft:#F5E6CE;
+    --danger:#B5504A;
+    --danger-bg:#F8E4E2;
+    --danger-strong:#95332E;
+    --border:#E3E1DA;
+    --border-soft:#EDEBE4;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;
+    line-height:1.5;-webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:1400px;margin:0 auto;padding:18px 16px 60px;}
+  .top{display:flex;flex-wrap:wrap;align-items:center;gap:14px;justify-content:space-between;margin-bottom:14px;}
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand .mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(150deg,var(--primary),var(--primary-dark));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;flex-shrink:0;}
+  .brand h1{font-family:'Noto Serif TC',serif;font-weight:700;font-size:21px;margin:0;color:var(--primary-dark);letter-spacing:.5px;}
+  .brand .sub{font-size:12px;color:var(--ink-faint);}
+  .month-picker{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:4px 6px;}
+  .month-picker button{width:28px;height:28px;border-radius:999px;border:none;background:transparent;color:var(--primary-dark);
+    font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .month-picker button:hover{background:var(--primary-soft);}
+  .month-picker .label{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;min-width:88px;text-align:center;color:var(--primary-dark);}
+  nav.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:4px;overflow-x:auto;margin-bottom:16px;}
+  nav.tabs button{border:none;background:transparent;padding:9px 16px;border-radius:999px;font-size:13.5px;font-weight:700;
+    color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:.15s;}
+  nav.tabs button.active{background:var(--primary);color:#fff;}
+  nav.tabs button:not(.active):hover{background:var(--primary-soft);color:var(--primary-dark);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px;}
+  .card h2{font-family:'Noto Serif TC',serif;font-size:17px;margin:0 0 4px;color:var(--primary-dark);display:flex;align-items:center;gap:8px;}
+  .card .desc{font-size:12.5px;color:var(--ink-faint);margin:0 0 14px;}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;}
+  .pill.locked{background:var(--danger-bg);color:var(--danger-strong);}
+  .pill.open{background:var(--primary-soft);color:var(--primary-dark);}
+  .pill.warn{background:var(--accent-soft);color:#8A5A1E;}
+  button.btn{font-family:inherit;font-weight:700;font-size:13px;padding:9px 16px;border-radius:8px;border:1px solid var(--primary);
+    background:var(--primary);color:#fff;cursor:pointer;transition:.15s;}
+  button.btn:hover{background:var(--primary-dark);}
+  button.btn.ghost{background:transparent;color:var(--primary-dark);}
+  button.btn.ghost:hover{background:var(--primary-soft);}
+  button.btn.danger{background:var(--danger);border-color:var(--danger);}
+  button.btn.danger:hover{background:var(--danger-strong);}
+  button.btn.small{padding:6px 11px;font-size:12px;border-radius:7px;}
+  button.btn:disabled{opacity:.45;cursor:not-allowed;}
+  select, input[type=text], input[type=date], textarea{
+    font-family:inherit;font-size:13px;padding:7px 9px;border-radius:7px;border:1px solid var(--border);background:#fff;color:var(--ink);}
+  select:focus, input:focus, textarea:focus{outline:2px solid var(--primary-soft);border-color:var(--primary);}
+  label.field{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink-soft);font-weight:700;}
+  .table-scroll{overflow-x:auto;border:1px solid var(--border-soft);border-radius:8px;}
+  table.grid{border-collapse:collapse;width:100%;min-width:900px;}
+  table.grid th, table.grid td{border:1px solid var(--border-soft);padding:5px 6px;font-size:12px;text-align:center;white-space:nowrap;}
+  table.grid thead th{background:var(--primary-soft);color:var(--primary-dark);font-weight:700;position:sticky;top:0;z-index:2;}
+  table.grid th.rowlabel, table.grid td.rowlabel{position:sticky;left:0;background:#F2F1EB;z-index:1;text-align:left;font-weight:700;color:var(--ink-soft);min-width:110px;}
+  table.grid thead th.rowlabel{z-index:3;}
+  table.grid td.deadline{background:var(--accent-soft)!important;color:#8A5A1E;}
+  table.grid .wd{font-size:10px;color:var(--ink-faint);display:block;font-weight:400;}
+  table.grid td.leave-cell{font-size:11px;color:var(--ink-soft);text-align:left;max-width:150px;white-space:normal;}
+  table.grid td.on-leave{background:var(--danger-bg);}
+  table.grid td.on-leave select, table.grid td.on-leave{color:var(--danger-strong);font-weight:700;}
+  table.grid select.cellsel{width:100%;min-width:64px;border:none;background:transparent;font-size:12px;text-align:center;padding:3px;}
+  table.grid input.celltxt{width:100%;min-width:70px;border:none;background:transparent;font-size:12px;text-align:center;padding:3px;}
+  table.grid td.readonly-cell{font-size:12px;}
+  .cal{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px;}
+  .cal .d{border:1px solid var(--border);border-radius:8px;padding:8px 6px;text-align:center;cursor:pointer;background:#fff;position:relative;min-height:56px;}
+  .cal .d .num{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;}
+  .cal .d .wd{font-size:10px;color:var(--ink-faint);}
+  .cal .d.leave{background:var(--danger-bg);border-color:var(--danger);}
+  .cal .d.leave .tag{font-size:9.5px;color:var(--danger-strong);font-weight:700;display:block;margin-top:2px;}
+  .cal .d:hover{border-color:var(--primary);}
+  .cal .d.disabled{opacity:.4;cursor:not-allowed;}
+  .empty{text-align:center;padding:40px 20px;color:var(--ink-faint);font-size:13px;}
+  .empty .big{font-size:30px;margin-bottom:8px;}
+  .list-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border-soft);border-radius:8px;margin-bottom:8px;background:#FBFAF7;}
+  .list-item .meta{font-size:12px;color:var(--ink-faint);}
+  .list-item .name{font-weight:700;font-size:13.5px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media (max-width: 760px){
+    .grid2, .grid3{grid-template-columns:1fr;}
+    table.grid{min-width:1100px;}
+    .cal{grid-template-columns:repeat(5,1fr);}
+    .brand h1{font-size:17px;}
+  }
+  .swap-cand{display:inline-flex;align-items:center;gap:6px;background:var(--primary-soft);color:var(--primary-dark);
+    padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;margin:3px 4px 0 0;}
+  .swap-cand .x{cursor:pointer;color:var(--danger-strong);}
+  .swap-cand .ud{cursor:pointer;color:var(--primary-dark);opacity:.7;}
+  .swap-cand .ud:hover{opacity:1;}
+  .badge{display:inline-block;padding:0 6px;border-radius:999px;font-size:10px;font-weight:700;margin-left:4px;vertical-align:middle;}
+  .badge.a{background:#E4EEF6;color:#4C7EA8;}
+  .badge.b{background:#EFE6F3;color:#8A5FA0;}
+  .footer-note{font-size:11.5px;color:var(--ink-faint);text-align:center;margin-top:22px;line-height:1.7;}
+  .flag{color:var(--danger-strong);font-weight:700;}
+  .ok{color:var(--primary-dark);font-weight:700;}
+  hr.sep{border:none;border-top:1px solid var(--border-soft);margin:16px 0;}
+  .tiny{font-size:11.5px;color:var(--ink-faint);}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--primary-dark);color:#fff;
+    padding:10px 18px;border-radius:999px;font-size:13px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.2);
+    z-index:50;opacity:0;pointer-events:none;transition:.25s;}
+  .toast.show{opacity:1;transform:translate(-50%,-6px);}
+  .grouplist{min-height:32px;}
+  .print-title{display:none;}
+  @media print{
+    body{background:#fff;}
+    .app{max-width:100%;padding:0;}
+    .no-print, nav.tabs, .month-picker, .footer-note, button, select.cellsel{display:none!important;}
+    input.celltxt{border:none!important;background:transparent!important;color:#000!important;padding:1px!important;}
+    .print-title{display:block;font-family:'Noto Serif TC',serif;font-size:22px;font-weight:700;margin-bottom:10px;color:#000;}
+    .card{border:1px solid #ccc;box-shadow:none;padding:8px;margin-bottom:8px;break-inside:avoid;}
+    .card h2{color:#000;}
+    .card .desc{display:none;}
+    table.grid{font-size:10px;min-width:0;width:100%;table-layout:fixed;}
+    table.grid th, table.grid td{padding:3px 4px;overflow-wrap:break-word;word-break:break-word;}
+    table.grid thead th{background:#eee!important;color:#000!important;position:static;}
+    table.grid td.rowlabel, table.grid th.rowlabel{background:#f5f5f5!important;position:static;font-size:11px;width:90px;}
+    .table-scroll{overflow:visible;border:none;}
+    td.on-leave{background:#fdd!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    td.deadline{background:#fde9c8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .badge{border:1px solid #999;}
+    @page{size:A3 landscape;margin:14mm 12mm;}
+    body.print-compact .extra-detail{display:none!important;}
+    body.print-compact .print-title{font-size:26px;margin-bottom:14px;}
+    body.print-compact table.grid{font-size:15px;}
+    body.print-compact table.grid th, body.print-compact table.grid td{padding:5px 6px;}
+    body.print-compact table.grid td.rowlabel, body.print-compact table.grid th.rowlabel{font-size:14px;width:105px;}
+    body.print-compact .card h2{font-size:18px;}
+    body.print-compact .badge{font-size:12px;padding:1px 8px;}
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">載入中…</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* ============ Firebase Firestore 雲端儲存(跨裝置同步共用) ============ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDbAJDGaOhdpso_Lz3VfuaiyzjJT1YsQWs",
+  authDomain: "class-753bc.firebaseapp.com",
+  projectId: "class-753bc",
+  storageBucket: "class-753bc.firebasestorage.app",
+  messagingSenderId: "63017816894",
+  appId: "1:63017816894:web:c93afbf8aa648efd25526f",
+  measurementId: "G-6CYEYEWKLE"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const COLLECTION = 'schedule-app-data';
+
+window.storage = {
+  async get(key, shared){
+    const ref = doc(db, COLLECTION, key);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) throw new Error('Key not found: '+key);
+    return {key, value: snap.data().value, shared};
+  },
+  async set(key, value, shared){
+    const ref = doc(db, COLLECTION, key);
+    await setDoc(ref, {value, shared: !!shared, updatedAt: Date.now()});
+    return {key, value, shared};
+  },
+  async delete(key, shared){
+    const ref = doc(db, COLLECTION, key);
+    await deleteDoc(ref);
+    return {key, deleted:true, shared};
+  },
+  async list(prefix, shared){
+    const col = collection(db, COLLECTION);
+    const snap = await getDocs(col);
+    const keys = [];
+    snap.forEach(d=>{ if(!prefix || d.id.indexOf(prefix)===0) keys.push(d.id); });
+    return {keys, prefix, shared};
+  }
+};
+
+// 通知主程式:雲端儲存已經準備好,可以開始執行 init()
+window.__storageReady = true;
+window.dispatchEvent(new Event('storage-ready'));
+</script>
+
+<script>
+/* ============ 常數 ============ */
+const LEAVE_TYPES = [
+  {code:'特',label:'特休'},{code:'事',label:'事假'},{code:'病',label:'病假'},
+  {code:'公',label:'公假'},{code:'家',label:'家庭照顧假'},{code:'其',label:'其他'}
+];
+const LEAVE_PERIODS = [{code:'全',label:'全天'},{code:'上',label:'上午'},{code:'下',label:'下午'}];
+const WD = ['日','一','二','三','四','五','六'];
+const DEFAULT_PIN = '1234';
+const DEFAULT_MIN_STAFF = 7;
+
+const SEED_STAFF_NAMES = ['秀華','莉納','明珠','昇諭','怡秀','巧羽','學書','勝順','佳琪','芳儀','靜梅','佩君','宜瑩','宥綸','淑梅','麗兒','佳亨'];
+
+// 固定分組(整月固定,班別為每月輪調一次)
+const DEFAULT_GROUP_NAMES = {
+  shiftA: ['秀華','莉納','明珠','昇諭','怡秀','巧羽','學書','勝順'],
+  shiftB: ['佳琪','芳儀','靜梅','佩君','宜瑩','宥綸','淑梅','麗兒','佳亨'],
+  floor1: ['秀華','佩君','芳儀'],
+  floor2: ['靜梅','莉納','佳琪'],
+  floor3: ['明珠','宜瑩','怡秀']
+};
+const GROUP_DEFS = [
+  {key:'shiftA', label:'A 班(8:00–16:30)'},
+  {key:'shiftB', label:'B 班(8:30–17:00)'},
+  {key:'floor1', label:'一樓教室(1F)人員'},
+  {key:'floor2', label:'二樓教室(2F)人員'},
+  {key:'floor3', label:'三樓教室(3F)人員'}
+];
+
+// 輪值順序名單(值週/跟車/中午支援 每日輪一位;煮飯每週輪一位)
+const DEFAULT_ROSTER_NAMES = {
+  dutyA: ['秀華','莉納','明珠','昇諭','怡秀','巧羽','學書'],
+  dutyB: ['佳琪','芳儀','靜梅','佩君','宜瑩','宥綸','淑梅','麗兒','佳亨'],
+  escortA: ['秀華','莉納','明珠','昇諭','怡秀','巧羽'],
+  escortB: ['佳琪','芳儀','靜梅','佩君','宜瑩','宥綸','麗兒','佳亨'],
+  lunchA: ['昇諭','巧羽','學書'],
+  lunchB: ['宥綸','麗兒','佳亨','淑梅'],
+  cooking: ['昇諭','芳儀','靜梅','佳琪','佩君','怡秀','秀華','明珠','莉納','宥綸','宜瑩']
+};
+const CONFLICT_PAIRS = {
+  escort9305: ['dutyA'],
+  escort9305B: ['dutyB'],
+  escort5012: ['dutyB'],
+  escort5012A: ['dutyA']
+};
+const ESCORT_ORDER = ['escort9305','escort9305B','escort5012','escort5012A'];
+const ROTATION_ROWS = [
+  {key:'dutyA', label:'值週(A班)', roster:'dutyA', freq:'day', team:'A'},
+  {key:'escort9305', label:'跟車9305(A班)', roster:'escortA', freq:'day', team:'A'},
+  {key:'escort5012A', label:'跟車5012(A班)', roster:'escortA', freq:'day', team:'A'},
+  {key:'lunch1F_A', label:'中午支援1F(A班)', roster:'lunchA', freq:'lunch', offset:0, floor:1, team:'A'},
+  {key:'lunch2F_A', label:'中午支援2F(A班)', roster:'lunchA', freq:'lunch', offset:1, floor:2, team:'A'},
+  {key:'lunch3F_A', label:'中午支援3F(A班)', roster:'lunchA', freq:'lunch', offset:2, floor:3, team:'A'},
+
+  {key:'dutyB', label:'值週(B班)', roster:'dutyB', freq:'day', team:'B'},
+  {key:'escort9305B', label:'跟車9305(B班)', roster:'escortB', freq:'day', team:'B'},
+  {key:'escort5012', label:'跟車5012(B班)', roster:'escortB', freq:'day', team:'B'},
+  {key:'lunch1F_B', label:'中午支援1F(B班)', roster:'lunchB', freq:'lunch', offset:0, floor:1, team:'B'},
+  {key:'lunch2F_B', label:'中午支援2F(B班)', roster:'lunchB', freq:'lunch', offset:1, floor:2, team:'B'},
+  {key:'lunch3F_B', label:'中午支援3F(B班)', roster:'lunchB', freq:'lunch', offset:2, floor:3, team:'B'},
+
+  {key:'cooking', label:'煮飯(每週輪調,不分班)', roster:'cooking', freq:'week', team:null}
+];
+const FLOOR_GROUP_KEY = {1:'floor1', 2:'floor2', 3:'floor3'};
+const LUNCH_MIN_PRESENT = 2;
+const DEFAULT_SHARED_ROWS = ['職能','美術','音樂','社區/班級','支援人力','用車登記-5639','用車登記-5630','用車登記-9661','備註'];
+const OPEN_SHARED_ROWS = ['社區/班級','支援人力','用車登記-5639','用車登記-5630','用車登記-9661'];
+
+// 行政院人事行政總處公告之國定假日(2026年起不再補班,假日逢週末以補假處理,故僅列出實際會落在平日的假日)
+const BUILTIN_HOLIDAYS = [
+  '2026-01-01', // 元旦
+  '2026-02-16','2026-02-17','2026-02-18','2026-02-19','2026-02-20', // 農曆春節
+  '2026-02-27', // 和平紀念日(228)補假
+  '2026-04-03','2026-04-06', // 兒童節/清明節
+  '2026-05-01', // 勞動節
+  '2026-06-19', // 端午節
+  '2026-09-25','2026-09-28', // 中秋節/教師節
+  '2026-10-09', // 國慶日
+  '2026-10-26', // 臺灣光復節
+  '2026-12-25', // 行憲紀念日
+  '2027-01-01' // 元旦(次年)
+];
+
+/* ============ 全域狀態 ============ */
+let state = {
+  ready:false,
+  ym: currentYM(),
+  activeTab:'overview',
+  staff:[],
+  month:null,
+  tempLeaves:[],
+  currentUserId:'',
+  isAdmin:false,
+  adminPin: DEFAULT_PIN,
+  minStaff: DEFAULT_MIN_STAFF,
+  rotationOffsets: {},
+  customHolidays: [],
+};
+
+function currentYM(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function ymParts(ym){ const [y,m] = ym.split('-').map(Number); return {y, m}; }
+function ymLabel(ym){ const {y,m} = ymParts(ym); return y+' 年 '+m+' 月'; }
+function shiftYM(ym, delta){
+  let {y,m} = ymParts(ym); m += delta;
+  while(m>12){m-=12;y++;} while(m<1){m+=12;y--;}
+  return y+'-'+String(m).padStart(2,'0');
+}
+function isHoliday(dateStr){
+  return BUILTIN_HOLIDAYS.includes(dateStr) || state.customHolidays.includes(dateStr);
+}
+function weekdayDates(ym){
+  const {y,m} = ymParts(ym);
+  const last = new Date(y,m,0).getDate();
+  const out = [];
+  for(let d=1; d<=last; d++){
+    const dt = new Date(y,m-1,d);
+    const wd = dt.getDay();
+    if(wd===0||wd===6) continue;
+    const dateStr = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    if(isHoliday(dateStr)) continue;
+    out.push({date: dateStr, day:d, wd: WD[wd]});
+  }
+  return out;
+}
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function staffName(id){ const s = state.staff.find(x=>x.id===id); return s ? s.name : (id||''); }
+function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36); }
+function idsFromNames(names){ return names.map(n=>{const s=state.staff.find(x=>x.name===n); return s?s.id:null;}).filter(Boolean); }
+
+/* ============ Storage 存取 ============ */
+let _storageWarningShown = false;
+function showStorageUnavailableWarning(){
+  if(_storageWarningShown) return;
+  _storageWarningShown = true;
+  alert('⚠️ 目前無法使用雲端共用儲存功能\n\n這通常是因為這個檔案是被「下載後直接用瀏覽器打開」,而不是在 Claude.ai 對話框裡面的預覽畫面中使用。\n\n雲端共用儲存只有在 Claude.ai 網頁的檔案預覽畫面中才能運作。請回到 Claude.ai 的對話,直接點開這個 App 的預覽卡片來操作,不要下載成本機檔案打開,這樣資料才能正確保存、跨月份與跨分頁都不會遺失。');
+}
+async function safeGet(key, shared, retries){
+  if(!window.storage || typeof window.storage.get !== 'function'){
+    showStorageUnavailableWarning();
+    return null;
+  }
+  retries = retries===undefined ? 1 : retries;
+  for(let attempt=0; attempt<=retries; attempt++){
+    try{
+      const r = await window.storage.get(key, shared);
+      return r ? r.value : null;
+    }catch(e){
+      if(attempt<retries){ await new Promise(res=>setTimeout(res,300)); continue; }
+      console.error('storage get failed after retry', key, e);
+      return null;
+    }
+  }
+  return null;
+}
+async function safeSet(key, value, shared, retries){
+  if(!window.storage || typeof window.storage.set !== 'function'){
+    showStorageUnavailableWarning();
+    return false;
+  }
+  retries = retries===undefined ? 1 : retries;
+  for(let attempt=0; attempt<=retries; attempt++){
+    try{
+      await window.storage.set(key, value, shared);
+      return true;
+    }catch(e){
+      if(attempt<retries){ await new Promise(res=>setTimeout(res,400)); continue; }
+      console.error('storage set failed after retry', key, e);
+      alert('⚠️ 儲存失敗!\n\n剛才的異動可能沒有真的存進雲端,請檢查網路連線後重新操作一次,並在重新整理頁面後確認資料是否正確。\n\n(錯誤訊息: '+(e && e.message ? e.message : e)+')');
+      return false;
+    }
+  }
+  return false;
+}
+async function loadStaff(){ const v = await safeGet('staff-list', true); state.staff = v ? JSON.parse(v) : []; }
+async function saveStaff(){ return await safeSet('staff-list', JSON.stringify(state.staff), true); }
+async function loadAdminPin(){ const v = await safeGet('admin-pin', true); state.adminPin = v || DEFAULT_PIN; }
+async function loadMinStaff(){ const v = await safeGet('min-staff', true); state.minStaff = v ? Number(v) : DEFAULT_MIN_STAFF; }
+async function loadRotationOffsets(){ const v = await safeGet('rotation-offsets', true); state.rotationOffsets = v ? JSON.parse(v) : {}; }
+async function saveRotationOffsets(){ await safeSet('rotation-offsets', JSON.stringify(state.rotationOffsets), true); }
+async function loadCustomHolidays(){ const v = await safeGet('custom-holidays', true); state.customHolidays = v ? JSON.parse(v) : []; }
+async function saveCustomHolidays(){ await safeSet('custom-holidays', JSON.stringify(state.customHolidays), true); }
+
+function emptyGroups(){ return {shiftA:[],shiftB:[],floor1:[],floor2:[],floor3:[]}; }
+function emptyRosters(){ return {dutyA:[],dutyB:[],escortA:[],escortB:[],lunchA:[],lunchB:[],cooking:[]}; }
+function defaultMonth(){
+  return { groups: emptyGroups(), rosters: emptyRosters(), sharedRows: DEFAULT_SHARED_ROWS.slice(),
+    sharedCell:{}, leaves:{}, assign:{}, locked:false, shiftSwaps:[] };
+}
+const knownNonEmptyMonths = new Set();
+function mergeShapeDefaults(defaultObj, savedObj){
+  const result = {};
+  Object.keys(defaultObj).forEach(k=>{
+    result[k] = (savedObj && Array.isArray(savedObj[k])) ? savedObj[k] : defaultObj[k];
+  });
+  return result;
+}
+async function loadMonth(ym){
+  const v = await safeGet('month:'+ym, true);
+  state.lastMonthLoadWasEmpty = false;
+  if(v){
+    const parsed = JSON.parse(v);
+    const def = defaultMonth();
+    state.month = Object.assign(def, parsed);
+    state.month.groups = mergeShapeDefaults(emptyGroups(), parsed.groups);
+    state.month.rosters = mergeShapeDefaults(emptyRosters(), parsed.rosters);
+    if(!state.month.sharedRows) state.month.sharedRows = def.sharedRows;
+    if(!state.month.leaves) state.month.leaves = {};
+    if(!state.month.assign) state.month.assign = {};
+    if(!state.month.sharedCell) state.month.sharedCell = {};
+    if(!Array.isArray(state.month.shiftSwaps)) state.month.shiftSwaps = [];
+    knownNonEmptyMonths.add(ym);
+  } else {
+    state.month = defaultMonth();
+    if(knownNonEmptyMonths.has(ym)) state.lastMonthLoadWasEmpty = true;
+  }
+  const groupsEmpty = Object.values(state.month.groups).every(a=>a.length===0);
+  const rostersEmpty = Object.values(state.month.rosters).every(a=>a.length===0);
+  if(groupsEmpty && rostersEmpty && state.staff.length>0){
+    Object.keys(DEFAULT_GROUP_NAMES).forEach(k=>{ state.month.groups[k] = idsFromNames(DEFAULT_GROUP_NAMES[k]); });
+    Object.keys(DEFAULT_ROSTER_NAMES).forEach(k=>{ state.month.rosters[k] = idsFromNames(DEFAULT_ROSTER_NAMES[k]); });
+    // 注意:此處只在記憶體中暫時填入預設值,不會自動寫回雲端儲存。
+    // 這樣即使這次讀取剛好因為暫時性錯誤而失敗(誤判為空月份),也不會覆蓋掉實際已存在的資料;
+    // 只有在使用者實際進行編輯動作時,才會真正寫入儲存。
+  }
+}
+async function saveMonth(){ knownNonEmptyMonths.add(state.ym); return await safeSet('month:'+state.ym, JSON.stringify(state.month), true); }
+async function loadTempLeaves(ym){ const v = await safeGet('templeaves:'+ym, true); state.tempLeaves = v ? JSON.parse(v) : []; }
+async function saveTempLeaves(){ await safeSet('templeaves:'+state.ym, JSON.stringify(state.tempLeaves), true); }
+async function loadAllForMonth(){ await Promise.all([loadMonth(state.ym), loadTempLeaves(state.ym)]); }
+
+/* ============ 請假邏輯 ============ */
+function leaveInfoFor(staffId, date){
+  const arr = (state.month.leaves && state.month.leaves[staffId]) || [];
+  const found = arr.find(l=>l.date===date);
+  if(found) return {onLeave:true, label: found.type+found.period, source:'regular', rec:found};
+  const t = state.tempLeaves.find(tl=>tl.staffId===staffId && tl.date===date && tl.status!=='covered');
+  if(t) return {onLeave:true, label:(t.type||'臨')+(t.period||'全'), source:'temp', rec:t};
+  return {onLeave:false};
+}
+function leavesOnDate(date){
+  const out = [];
+  state.staff.forEach(s=>{ const info = leaveInfoFor(s.id, date); if(info.onLeave) out.push(s.name+'('+info.label+')'); });
+  return out;
+}
+function deadlineDay(){ return 19; }
+function isPastDeadlineToday(ym){
+  const {y,m} = ymParts(ym);
+  const prev = new Date(y, m-2, 19, 23,59,59);
+  return new Date() > prev;
+}
+
+/* ============ 輪值計算 ============ */
+// 全月週期索引(跨月連續累計,不會每月重置,避免名單後段的人永遠輪不到)
+const ROTATION_EPOCH = new Date(2025,0,6); // 2025-01-06 為星期一,作為連續輪值的起算基準
+function countWeekdaysInclusive(start, end){
+  const days = Math.round((end-start)/86400000)+1;
+  if(days<=0) return 0;
+  const weeks = Math.floor(days/7);
+  let count = weeks*5;
+  const remainder = days%7;
+  const startWd = start.getDay();
+  for(let i=0;i<remainder;i++){
+    const d = (startWd+i)%7;
+    if(d!==0 && d!==6) count++;
+  }
+  return count;
+}
+function globalWeekdayIndex(dateStr){
+  const target = new Date(dateStr+'T00:00:00');
+  if(target < ROTATION_EPOCH) return 0;
+  return countWeekdaysInclusive(ROTATION_EPOCH, target) - 1;
+}
+function globalWeekIndex(dateStr){
+  const idx = globalWeekdayIndex(dateStr);
+  return idx<0 ? 0 : Math.floor(idx/5);
+}
+function weekdayIndexInMonth(date){
+  const dates = weekdayDates(date.slice(0,7));
+  return dates.findIndex(d=>d.date===date);
+}
+function weekIndexInMonth(date){
+  const idx = weekdayIndexInMonth(date);
+  return idx<0 ? 0 : Math.floor(idx/5);
+}
+function selectFromRoster(rosterArr, baseIdx, avoidIds, date){
+  if(!rosterArr || rosterArr.length===0 || baseIdx<0) return '';
+  const avoid = avoidIds || [];
+  for(let attempt=0; attempt<rosterArr.length; attempt++){
+    const candidate = rosterArr[(baseIdx+attempt) % rosterArr.length];
+    if(avoid.includes(candidate)) continue;
+    if(leaveInfoFor(candidate, date).onLeave) continue;
+    return candidate;
+  }
+  // 名單裡沒有人同時符合「沒請假」且「沒被排去做同一時段的其他工作」,留空,畫面會標紅提示人力不足
+  return '';
+}
+const LUNCH_GROUPS = { A:['lunch1F_A','lunch2F_A','lunch3F_A'], B:['lunch1F_B','lunch2F_B','lunch3F_B'] };
+const ROSTER_FREQ = {};
+ROTATION_ROWS.forEach(r=>{ if(!(r.roster in ROSTER_FREQ)) ROSTER_FREQ[r.roster] = r.freq; });
+function rosterOffset(rosterKey){ return state.rotationOffsets[rosterKey] || 0; }
+function computeRotation(row, date){
+  if(row.freq==='week'){
+    const idx = globalWeekIndex(date) + rosterOffset(row.roster);
+    return selectFromRoster(state.month.rosters[row.roster], idx, [], date);
+  }
+  if(row.freq==='lunch'){
+    const floorMembers = state.month.groups[FLOOR_GROUP_KEY[row.floor]] || [];
+    const presentInTeam = (teamKey)=> floorMembers.filter(id=>{
+      const wantTeam = teamKey==='shiftA' ? 'A' : 'B';
+      if(effectiveTeamOnDate(id, date) !== wantTeam) return false;
+      return !leaveInfoFor(id, date).onLeave;
+    }).length;
+    // A班支援:A班人員中午離開用餐,檢查樓層剩下的B班在場人數夠不夠2人
+    // B班支援:B班人員中午離開用餐,檢查樓層剩下的A班在場人數夠不夠2人
+    const presentCount = row.team==='A' ? presentInTeam('shiftB') : presentInTeam('shiftA');
+    const needed = Math.max(0, LUNCH_MIN_PRESENT - presentCount);
+    if(needed < 1) return null; // 該方向在場人數已足夠2人,不需要這個名額支援
+
+    const baseIdx = globalWeekdayIndex(date) + rosterOffset(row.roster);
+    const group = LUNCH_GROUPS[row.team] || [];
+    const myPos = group.indexOf(row.key);
+    const avoidIds = [];
+    for(let i=0;i<myPos;i++){
+      const otherRow = ROTATION_ROWS.find(r=>r.key===group[i]);
+      const v = otherRow ? effectiveRotation(otherRow, date) : '';
+      if(v) avoidIds.push(v);
+    }
+    return selectFromRoster(state.month.rosters[row.roster], baseIdx+row.offset, avoidIds, date);
+  }
+  if(row.freq==='day'){
+    const baseIdx = globalWeekdayIndex(date) + rosterOffset(row.roster);
+    const avoidIds = (CONFLICT_PAIRS[row.key]||[]).map(k=>{
+      const pairRow = ROTATION_ROWS.find(r=>r.key===k);
+      return pairRow ? effectiveRotation(pairRow, date) : '';
+    }).filter(Boolean);
+    if(ESCORT_ORDER.includes(row.key)){
+      const myIdx = ESCORT_ORDER.indexOf(row.key);
+      for(let i=0;i<myIdx;i++){
+        const otherRow = ROTATION_ROWS.find(r=>r.key===ESCORT_ORDER[i]);
+        const v = otherRow ? effectiveRotation(otherRow, date) : '';
+        if(v) avoidIds.push(v);
+      }
+    }
+    return selectFromRoster(state.month.rosters[row.roster], baseIdx, avoidIds, date);
+  }
+  return '';
+}
+// 每日輪值(值週/跟車)整月排定,並記錄「因請假而代班」的公平記帳(僅限當月內,代班者之後會被跳過一次把班還回去)
+const DAY_ORDER = ['dutyA','dutyB', ...ESCORT_ORDER];
+function buildDayRotationSchedule(){
+  const dates = weekdayDates(state.ym);
+  const credit = {}; // credit[rosterKey][staffId] = 欠他的補休次數
+  const creditOf = (rk,id)=> (credit[rk] && credit[rk][id]) || 0;
+  const addCredit = (rk,id)=>{ credit[rk]=credit[rk]||{}; credit[rk][id]=(credit[rk][id]||0)+1; };
+  const useCredit = (rk,id)=>{ credit[rk]=credit[rk]||{}; credit[rk][id]=(credit[rk][id]||0)-1; };
+  const schedule = {};
+  DAY_ORDER.forEach(k=> schedule[k] = {});
+
+  dates.forEach(d=>{
+    const dayAssign = {};
+    DAY_ORDER.forEach(rowKey=>{
+      const row = ROTATION_ROWS.find(r=>r.key===rowKey);
+      if(!row) return;
+      if(hasOverride(rowKey, d.date)){ dayAssign[rowKey] = state.month.assign[rotKey(rowKey,d.date)]; return; }
+      const rosterArr = state.month.rosters[row.roster] || [];
+      const n = rosterArr.length;
+      if(n===0){ dayAssign[rowKey] = ''; return; }
+      const rawIdx = globalWeekdayIndex(d.date) + rosterOffset(row.roster);
+      const naturalIdx = ((rawIdx % n) + n) % n;
+
+      const avoidIds = (CONFLICT_PAIRS[rowKey]||[]).map(k=>dayAssign[k]).filter(Boolean);
+      if(ESCORT_ORDER.includes(rowKey)){
+        const myPos = ESCORT_ORDER.indexOf(rowKey);
+        for(let i=0;i<myPos;i++){ const v = dayAssign[ESCORT_ORDER[i]]; if(v) avoidIds.push(v); }
+      }
+
+      let selected = '';
+      let leaveSkipHappened = false;
+      for(let attempt=0; attempt<n; attempt++){
+        const cand = rosterArr[(naturalIdx+attempt) % n];
+        if(avoidIds.includes(cand)) continue;
+        if(attempt===0){
+          if(leaveInfoFor(cand, d.date).onLeave){ leaveSkipHappened = true; continue; }
+          if(creditOf(row.roster, cand) > 0){ useCredit(row.roster, cand); continue; }
+          selected = cand; break;
+        } else {
+          if(leaveInfoFor(cand, d.date).onLeave) continue;
+          selected = cand; break;
+        }
+      }
+      if(!selected){
+        selected = '';
+      }
+
+      if(selected && leaveSkipHappened && selected !== rosterArr[naturalIdx]){
+        addCredit(row.roster, selected);
+      }
+      dayAssign[rowKey] = selected;
+    });
+    DAY_ORDER.forEach(rowKey=>{ schedule[rowKey][d.date] = dayAssign[rowKey]; });
+  });
+  return schedule;
+}
+let _dayScheduleCache = null;
+let _dayScheduleCacheYm = null;
+function getDaySchedule(){
+  if(_dayScheduleCache && _dayScheduleCacheYm===state.ym) return _dayScheduleCache;
+  _dayScheduleCache = buildDayRotationSchedule();
+  _dayScheduleCacheYm = state.ym;
+  return _dayScheduleCache;
+}
+function invalidateDaySchedule(){ _dayScheduleCache = null; }
+
+function rotKey(rowKey, date){ return 'rot|'+rowKey+'|'+date; }
+function effectiveRotation(row, date){
+  const k = rotKey(row.key, date);
+  if(state.month.assign[k]) return state.month.assign[k];
+  if(row.freq==='day') return (getDaySchedule()[row.key]||{})[date] || '';
+  return computeRotation(row, date);
+}
+function hasOverride(rowKey, date){ return !!state.month.assign[rotKey(rowKey,date)]; }
+function setOverride(rowKey, date, staffId){
+  const k = rotKey(rowKey,date);
+  if(staffId) state.month.assign[k] = staffId; else delete state.month.assign[k];
+}
+
+// 找出某員工在某日被排到哪些輪值項目(用於臨時請假找代理)
+function rotationsOf(staffId, date){
+  const res = [];
+  ROTATION_ROWS.forEach(row=>{
+    if(row.key==='cooking') return; // 煮飯為整週,不做單日代理
+    if(effectiveRotation(row, date)===staffId) res.push(row);
+  });
+  return res;
+}
+function busyStaffIdsOn(date){
+  const set = new Set();
+  ROTATION_ROWS.forEach(row=>{ const v = effectiveRotation(row,date); if(v) set.add(v); });
+  return set;
+}
+
+// 該日該班別(依 A/B 班別分組,已考慮調班)實際到班人數(扣除請假) — 見下方定義
+function understaffedList(ym){
+  const dates = weekdayDates(ym);
+  const out = [];
+  dates.forEach(d=>{
+    ['A','B'].forEach(team=>{
+      const c = teamHeadcount(team, d.date);
+      if(c < state.minStaff) out.push({date:d.date, day:d.day, wd:d.wd, team, count:c});
+    });
+  });
+  return out;
+}
+function shortageWarningHTML(){
+  const list = understaffedList(state.ym);
+  const floorList = floorConflictList(state.ym);
+  if(list.length===0 && floorList.length===0) return '';
+  let html = '';
+  if(list.length){
+    html += `<div class="card" style="border-color:var(--danger);background:var(--danger-bg);">
+      <h2 style="color:var(--danger-strong);">⚠ 人力不足警示(低於最低 ${state.minStaff} 人)</h2>
+      <div class="desc" style="color:var(--danger-strong);">以下日期班別人力不足,請儘速通知主管協調支援。</div>
+      ${list.map(x=>`<div class="list-item" style="background:#fff;">
+        <div><span class="name">${state.ym.split('-')[1]}/${x.day}(${x.wd}) — ${x.team}班</span></div>
+        <div class="flag">目前僅 ${x.count} 人 / 最低需 ${state.minStaff} 人</div>
+      </div>`).join('')}
+    </div>`;
+  }
+  if(floorList.length){
+    html += `<div class="card" style="border-color:var(--danger);background:var(--danger-bg);">
+      <h2 style="color:var(--danger-strong);">⚠ 樓層人力警示(同樓層同天有2位以上請假)</h2>
+      <div class="desc" style="color:var(--danger-strong);">同一樓層同一天最多建議1位教保員休假,以下日期已超過,請留意樓層營運。</div>
+      ${floorList.map(x=>`<div class="list-item" style="background:#fff;">
+        <div><span class="name">${state.ym.split('-')[1]}/${x.day}(${x.wd}) — ${x.floorLabel}</span></div>
+        <div class="flag">請假:${x.names.join('、')}</div>
+      </div>`).join('')}
+    </div>`;
+  }
+  return html;
+}
+function floorConflictList(ym){
+  const dates = weekdayDates(ym);
+  const out = [];
+  Object.keys(FLOOR_GROUP_KEY).forEach(f=>{
+    const floorKey = FLOOR_GROUP_KEY[f];
+    const members = state.month.groups[floorKey] || [];
+    dates.forEach(d=>{
+      const onLeaveMembers = members.filter(id=>leaveInfoFor(id,d.date).onLeave);
+      if(onLeaveMembers.length>=2){
+        out.push({date:d.date, day:d.day, wd:d.wd, floorLabel:f+'樓', names:onLeaveMembers.map(id=>staffName(id))});
+      }
+    });
+  });
+  return out.sort((a,b)=>a.date.localeCompare(b.date));
+}
+function teamOfStaff(staffId){
+  if((state.month.groups.shiftA||[]).includes(staffId)) return 'A';
+  if((state.month.groups.shiftB||[]).includes(staffId)) return 'B';
+  return null;
+}
+function floorsOfStaff(staffId){
+  return Object.keys(FLOOR_GROUP_KEY).map(f=>FLOOR_GROUP_KEY[f]).filter(fk=>(state.month.groups[fk]||[]).includes(staffId));
+}
+function floorLeaveCount(floorKey, date, excludeId){
+  const members = state.month.groups[floorKey] || [];
+  return members.filter(id=> id!==excludeId && leaveInfoFor(id,date).onLeave).length;
+}
+function checkFloorLeaveLimit(staffId, date){
+  const problems = [];
+  floorsOfStaff(staffId).forEach(floorKey=>{
+    const existing = floorLeaveCount(floorKey, date, staffId);
+    if(existing >= 1){
+      const members = state.month.groups[floorKey] || [];
+      const others = members.filter(id=>id!==staffId && leaveInfoFor(id,date).onLeave).map(id=>staffName(id));
+      problems.push(`${floorKey.replace('floor','')}樓 當天已有 ${others.join('、')} 請假,同一樓層同一天最多只能1位教保員休假`);
+    }
+  });
+  return problems;
+}
+function checkLunchPoolImpact(staffId, date){
+  const inLunchA = (state.month.rosters.lunchA||[]).includes(staffId);
+  const inLunchB = (state.month.rosters.lunchB||[]).includes(staffId);
+  if(!inLunchA && !inLunchB) return [];
+  const poolKey = inLunchA ? 'lunchA' : 'lunchB';
+  const pool = state.month.rosters[poolKey] || [];
+  const stillAvailable = pool.filter(id=> id!==staffId && !leaveInfoFor(id,date).onLeave).length;
+  if(stillAvailable===0){
+    return [`${staffName(staffId)} 是中午支援(${inLunchA?'A':'B'}班池)成員,這天請假後,該支援池當天可能沒有其他人可以支援`];
+  }
+  return [];
+}
+function swapFor(staffId, date){
+  return (state.month.shiftSwaps||[]).find(s=>s.date===date && s.staffId===staffId) || null;
+}
+function effectiveTeamOnDate(staffId, date){
+  const s = swapFor(staffId, date);
+  if(!s) return teamOfStaff(staffId);
+  const original = teamOfStaff(staffId);
+  return original==='A' ? 'B' : (original==='B' ? 'A' : original);
+}
+function teamHeadcount(team, date){
+  const allIds = [...(state.month.groups.shiftA||[]), ...(state.month.groups.shiftB||[])];
+  return allIds.filter(id=>!leaveInfoFor(id,date).onLeave && effectiveTeamOnDate(id,date)===team).length;
+}
+function teamBadge(staffId){
+  const t = teamOfStaff(staffId);
+  return t ? `<span class="badge ${t==='A'?'a':'b'}">${t}</span>` : '';
+}
+function checkShortageAndAlert(date, team){
+  if(!team) return;
+  const c = teamHeadcount(team, date);
+  if(c < state.minStaff){
+    alert('⚠️ 人力不足提醒\n\n'+date+'（'+team+'班）目前僅剩 '+c+' 人,低於最低 '+state.minStaff+' 人門檻。\n請務必通知主管協調支援!');
+  }
+}
+
+/* ============ Render 根函式 ============ */
+function render(){
+  invalidateDaySchedule();
+  const app = document.getElementById('app');
+  app.innerHTML = renderTop() + renderTabs() + '<div id="tabContent"></div>' + renderFooter();
+  document.getElementById('tabContent').innerHTML = renderTabContent();
+  bindGlobalEvents();
+  bindTabEvents();
+}
+function renderTop(){
+  return `<div class="top">
+    <div class="brand"><div class="mark">班</div>
+      <div><h1>班表管理系統</h1><div class="sub">共用班表・所有人員皆可檢視此頁面上的資料(雲端同步)</div></div>
+    </div>
+    <div class="month-picker">
+      <button id="prevM" title="上個月">‹</button>
+      <div class="label">${ymLabel(state.ym)}</div>
+      <button id="nextM" title="下個月">›</button>
+    </div>
+  </div>`;
+}
+function renderTabs(){
+  const tabs = [['overview','班表總覽'],['myleave','我的請假'],['admin','排班管理'],['temp','臨時請假 / 換班支援']];
+  return '<nav class="tabs">' + tabs.map(([k,l])=>`<button data-tab="${k}" class="${state.activeTab===k?'active':''}">${l}</button>`).join('') + '</nav>';
+}
+function renderFooter(){
+  return `<div class="footer-note">資料透過雲端資料庫同步,所有裝置、所有使用者看到的都是同一份最新資料;排班管理功能需輸入管理密碼才能修改,預設密碼為 ${DEFAULT_PIN}。</div>`;
+}
+function renderTabContent(){
+  if(state.activeTab==='overview') return renderOverview();
+  if(state.activeTab==='myleave') return renderMyLeave();
+  if(state.activeTab==='admin') return renderAdmin();
+  if(state.activeTab==='temp') return renderTemp();
+  return '';
+}
+
+/* ============ Tab: 總覽 ============ */
+function groupSummaryCard(){
+  return `<div class="grid3">
+    ${GROUP_DEFS.map(g=>`<div class="card">
+      <h2 style="font-size:14px;">${g.label}</h2>
+      <div>${(state.month.groups[g.key]||[]).map(id=>`<span class="swap-cand">${staffName(id)}</span>`).join('') || '<span class="tiny">尚未設定</span>'}</div>
+    </div>`).join('')}
+  </div>`;
+}
+function rotationTableHTML(dates, editable, rows){
+  rows = rows || ROTATION_ROWS;
+  const staffOptsAll = (sel)=> `<option value="">—</option>` + state.staff.map(s=>`<option value="${s.id}" ${sel===s.id?'selected':''}>${s.name}</option>`).join('');
+  let html = `<div class="table-scroll"><table class="grid"><thead><tr>
+    <th class="rowlabel">每日輪值</th>
+    ${dates.map(d=>`<th class="${d.day===19?'deadline':''}">${d.day}<span class="wd">${d.wd}</span></th>`).join('')}
+  </tr></thead><tbody>`;
+  rows.forEach(row=>{
+    html += `<tr><td class="rowlabel">${row.label}</td>${dates.map(d=>{
+      const val = effectiveRotation(row, d.date);
+      const rosterConfigured = (state.month.rosters[row.roster]||[]).length>0;
+      const notNeeded = val===null;
+      const shortHere = val==='' && rosterConfigured;
+      const info = val ? leaveInfoFor(val, d.date) : {onLeave:false};
+      const cls = info.onLeave || shortHere ? 'on-leave' : '';
+      if(editable){
+        return `<td class="${cls}">
+          <select class="cellsel" data-rot="${row.key}|${d.date}">${staffOptsAll(val)}</select>${val?teamBadge(val):''}
+          ${notNeeded?`<div><span class="tiny">— 不需支援 —</span></div>`:''}
+          ${shortHere?`<div><span class="tiny" style="color:var(--danger-strong);">⚠人力不足</span></div>`:''}
+          ${hasOverride(row.key,d.date)?`<div><span class="tiny" style="cursor:pointer;color:var(--primary-dark);" data-clear-rot="${row.key}|${d.date}">↺ 還原自動</span></div>`:''}
+        </td>`;
+      }
+      if(notNeeded) return `<td class="readonly-cell"><span class="tiny">不需支援</span></td>`;
+      if(shortHere) return `<td class="readonly-cell ${cls}"><span class="wd">⚠人力不足</span></td>`;
+      return `<td class="readonly-cell ${cls}">${val?staffName(val)+teamBadge(val):''}${info.onLeave?`<br><span class="wd">⚠需調整</span>`:''}</td>`;
+    }).join('')}</tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+function renderOverview(){
+  const dates = weekdayDates(state.ym);
+  if(state.staff.length===0){
+    return `<div class="card"><div class="empty"><div class="big">🗂️</div>尚未建立同仁名單,請先到「排班管理」新增人員。</div></div>`;
+  }
+  const lockPill = state.month.locked
+    ? `<span class="pill locked">🔒 本月已鎖定,不可再自行填假</span>`
+    : `<span class="pill open">🔓 本月開放填假中</span>`;
+  const suggest = isPastDeadlineToday(state.ym) && !state.month.locked
+    ? `<span class="pill warn">⚠ 已過建議鎖定時間(上月19日),請至排班管理鎖定班表</span>` : '';
+  const shortDates = new Set(understaffedList(state.ym).map(x=>x.date));
+
+  let html = `<div class="print-title">${ymLabel(state.ym)} 班表</div>`;
+  html += `<div class="card no-print">
+    <div class="desc">列印會使用瀏覽器的列印功能,建議紙張選「A3」、方向選「橫向」。「精簡大字版」只印值週/跟車/中午支援/煮飯這些每天要看的輪值,拿掉分組說明跟支援細節,字體會加大、比較容易印成一頁看清楚;「完整版」則會印出所有資訊,但字會比較小。</div>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn small" id="printCompactBtn">🖨️ 列印班表(精簡大字版,適合一頁)</button>
+      <button class="btn small ghost" id="printFullBtn">🖨️ 列印完整資料</button>
+    </div>
+  </div>`;
+  html += shortageWarningHTML();
+  html += `<div class="card extra-detail">
+    <h2>本月固定分組</h2>
+    <div class="desc">班別(時段)每月輪調一次;教室樓層為本月固定名單,由排班管理維護;值週、跟車、中午支援則依順序名單每日自動輪替。</div>
+    ${groupSummaryCard()}
+  </div>`;
+
+  html += `<div class="card">
+    <h2>班表總覽 — ${ymLabel(state.ym)}</h2>
+    <div class="desc">值週／跟車依名單順序每日自動輪替(值週不會跟同班跟車撞名,4條跟車彼此當天也不會是同一人)。中午支援:A班人員視為中午會離開用餐,若樓層剩下的B班在場人數不足2人,系統會自動從A班池派人補足;同理B班人員中午離開時,若樓層剩下的A班在場人數不足2人,會從B班池派人補足。煮飯每週輪替一次。紅色底色代表該日已請假,可能需要調整。</div>
+    <div class="row" style="margin-bottom:14px;">${lockPill}${suggest}</div>
+    <div class="table-scroll"><table class="grid"><thead><tr>
+      <th class="rowlabel">項目</th>
+      ${dates.map(d=>`<th class="${d.day===19?'deadline':''}">${shortDates.has(d.date)?'⚠':''}${d.day}<span class="wd">${d.wd}</span></th>`).join('')}
+    </tr></thead><tbody>
+    <tr><td class="rowlabel">請假人員</td>${dates.map(d=>{
+      const ls = leavesOnDate(d.date);
+      return `<td class="leave-cell">${ls.length? ls.join('、') : '<span class="tiny">—</span>'}</td>`;
+    }).join('')}</tr>
+    </tbody></table></div>
+  </div>`;
+
+  const monthSwaps = (state.month.shiftSwaps||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  if(monthSwaps.length){
+    html += `<div class="card" style="border-color:var(--accent);">
+      <h2 style="color:#8A5A1E;">🔁 本月調班紀錄</h2>
+      <div class="desc">同仁當天調至對方班別支援的紀錄,僅列出有調班的日期,方便對照實際出勤與會計對帳。</div>
+      ${monthSwaps.map(s=>{
+        const origTeam = teamOfStaff(s.staffId);
+        const toTeam = origTeam==='A' ? 'B' : 'A';
+        return `<div class="list-item">
+          <div><span class="name">${s.date}</span></div>
+          <div class="meta" style="font-weight:700;color:#8A5A1E;">${staffName(s.staffId)} 原${origTeam}班 → 當天調至${toTeam}班支援</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  html += `<div class="card"><h2>A 班 每日輪值(自動計算)</h2><div class="desc">此表由系統依名單順序自動產生,如需調整請至「排班管理」。</div>${rotationTableHTML(dates,false,ROTATION_ROWS.filter(r=>r.team==='A'))}</div>`;
+  html += `<div class="card"><h2>B 班 每日輪值(自動計算)</h2><div class="desc">此表由系統依名單順序自動產生,如需調整請至「排班管理」。</div>${rotationTableHTML(dates,false,ROTATION_ROWS.filter(r=>r.team==='B'))}</div>`;
+  html += `<div class="card"><h2>共同輪值</h2>${rotationTableHTML(dates,false,ROTATION_ROWS.filter(r=>!r.team))}</div>`;
+
+  const openRows = state.month.sharedRows.filter(r=>OPEN_SHARED_ROWS.includes(r));
+  const adminRows = state.month.sharedRows.filter(r=>!OPEN_SHARED_ROWS.includes(r));
+
+  if(openRows.length){
+    html += `<div class="card extra-detail"><h2>現場填寫區(開放所有人填寫)</h2>
+    <div class="desc">社區/班級、支援人力、用車登記等項目,不需要管理密碼,任何人都可以直接填寫,填完會即時儲存給大家看到。</div>`;
+    html += `<div class="table-scroll"><table class="grid"><thead><tr>
+      <th class="rowlabel">項目</th>
+      ${dates.map(d=>`<th class="${d.day===19?'deadline':''}">${d.day}<span class="wd">${d.wd}</span></th>`).join('')}
+    </tr></thead><tbody>
+    ${openRows.map(row=>`<tr><td class="rowlabel">${row}</td>${dates.map(d=>{
+      const v = state.month.sharedCell[row+'|'+d.date] || '';
+      return `<td><input class="celltxt" type="text" value="${v.replace(/"/g,'&quot;')}" data-shared="${row}|${d.date}"></td>`;
+    }).join('')}</tr>`).join('')}
+    </tbody></table></div></div>`;
+  }
+
+  if(adminRows.length){
+    html += `<div class="card extra-detail"><h2>共用支援事項</h2><div class="desc">此區由管理者於「排班管理」維護。</div>`;
+    html += `<div class="table-scroll"><table class="grid"><thead><tr>
+      <th class="rowlabel">項目</th>
+      ${dates.map(d=>`<th class="${d.day===19?'deadline':''}">${d.day}<span class="wd">${d.wd}</span></th>`).join('')}
+    </tr></thead><tbody>
+    ${adminRows.map(row=>`<tr><td class="rowlabel">${row}</td>${dates.map(d=>{
+      const v = state.month.sharedCell[row+'|'+d.date] || '';
+      return `<td class="readonly-cell">${v}</td>`;
+    }).join('')}</tr>`).join('')}
+    </tbody></table></div></div>`;
+  }
+  return html;
+}
+
+/* ============ Tab: 我的請假 ============ */
+function renderMyLeave(){
+  if(state.staff.length===0){
+    return `<div class="card"><div class="empty"><div class="big">🗂️</div>尚未建立同仁名單,請先請管理者到「排班管理」新增人員。</div></div>`;
+  }
+  const dates = weekdayDates(state.ym);
+  const opts = state.staff.map(s=>`<option value="${s.id}" ${state.currentUserId===s.id?'selected':''}>${s.name}</option>`).join('');
+  let body = '';
+  if(state.currentUserId){
+    const myLeaves = (state.month.leaves[state.currentUserId]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+    const locked = state.month.locked;
+    body = `
+    <div class="row" style="margin:10px 0 4px;">
+      ${locked? '<span class="pill locked">🔒 本月已鎖定,如需異動請改用「臨時請假」分頁</span>' : '<span class="pill open">🔓 可自行點選日期填假,填好後管理者會於截止日鎖定班表</span>'}
+    </div>
+    <div class="cal">
+      ${dates.map(d=>{
+        const info = (state.month.leaves[state.currentUserId]||[]).find(l=>l.date===d.date);
+        return `<div class="d ${info?'leave':''} ${locked?'disabled':''}" data-date="${d.date}">
+          <div class="num">${d.day}</div><div class="wd">${d.wd}</div>
+          ${info?`<span class="tag">${info.type}${info.period}</span>`:''}
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="tiny" style="margin-top:8px;">點選日期即可新增／取消該天的請假申請。</div>
+    <hr class="sep">
+    <h2 style="font-size:14px;">我目前已申請的休假</h2>
+    ${myLeaves.length? myLeaves.map(l=>`
+      <div class="list-item">
+        <div><div class="name">${l.date}</div><div class="meta">${l.type}・${l.period}</div></div>
+        ${!locked?`<button class="btn small danger" data-remove-leave="${l.id}">取消</button>`:''}
+      </div>`).join('') : '<div class="tiny">尚未申請任何休假</div>'}
+    `;
+  } else {
+    body = `<div class="empty"><div class="big">🙋</div>請先選擇您的姓名</div>`;
+  }
+  return `<div class="card">
+    <h2>我的請假 — ${ymLabel(state.ym)}</h2>
+    <div class="desc">請於每月19號前(對下個月班表而言,為上月19日)完成休假填寫,逾期由管理者鎖定後將無法自行修改。</div>
+    <label class="field">選擇姓名<select id="myLeaveUser">${'<option value="">— 請選擇 —</option>'+opts}</select></label>
+    ${body}
+  </div>
+  <div id="leaveModalHost"></div>`;
+}
+function leaveModal(date){
+  return `<div class="card" id="leaveModalCard" style="border-color:var(--primary);">
+    <h2>新增休假 — ${date}</h2>
+    <div class="row">
+      <label class="field">假別<select id="lmType">${LEAVE_TYPES.map(t=>`<option value="${t.label.charAt(0)}">${t.label}</option>`).join('')}</select></label>
+      <label class="field">時段<select id="lmPeriod">${LEAVE_PERIODS.map(p=>`<option value="${p.code}">${p.label}</option>`).join('')}</select></label>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <button class="btn" id="lmSave">儲存</button>
+      <button class="btn ghost" id="lmCancel">取消</button>
+    </div>
+  </div>`;
+}
+
+/* ============ Tab: 排班管理 ============ */
+function chipGroupHTML(gkey, label){
+  const ids = state.month.groups[gkey]||[];
+  const opts = `<option value="">＋加入人員</option>` + state.staff.filter(s=>!ids.includes(s.id)).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  return `<div class="card">
+    <h2 style="font-size:14px;">${label}</h2>
+    <div class="grouplist">${ids.map(id=>`<span class="swap-cand">${staffName(id)} <span class="x" data-group-remove="${gkey}|${id}">✕</span></span>`).join('') || '<span class="tiny">尚未設定</span>'}</div>
+    <div class="row" style="margin-top:8px;"><select data-group-add="${gkey}">${opts}</select></div>
+  </div>`;
+}
+function chipRosterHTML(rkey, label){
+  const ids = state.month.rosters[rkey]||[];
+  const opts = `<option value="">＋加入人員</option>` + state.staff.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  const anchorOpts = ids.map(id=>`<option value="${id}">${staffName(id)}</option>`).join('');
+  const curOffset = rosterOffset(rkey);
+  return `<div class="card">
+    <h2 style="font-size:14px;">${label}</h2>
+    <div class="desc">依下列順序輪流,系統會依日期(或週次)自動往下輪替,跨月不會重來。</div>
+    <div class="grouplist">${ids.map((id,idx)=>`<span class="swap-cand">${idx+1}. ${staffName(id)}
+      <span class="ud" data-roster-up="${rkey}|${idx}">↑</span><span class="ud" data-roster-down="${rkey}|${idx}">↓</span>
+      <span class="x" data-roster-remove="${rkey}|${idx}">✕</span></span>`).join('') || '<span class="tiny">尚未設定</span>'}</div>
+    <div class="row" style="margin-top:8px;"><select data-roster-add="${rkey}">${opts}</select></div>
+    ${ids.length? `<div class="row" style="margin-top:10px;border-top:1px dashed var(--border);padding-top:8px;">
+      <label class="field">指定日期<input type="date" id="anchorDate-${rkey}"></label>
+      <label class="field">當週(或當天)要輪到<select id="anchorPerson-${rkey}">${anchorOpts}</select></label>
+      <button class="btn small ghost" data-set-anchor="${rkey}">設定為輪值起點</button>
+      ${curOffset? `<span class="tiny">目前偏移量:${curOffset}</span>`:''}
+    </div>` : ''}
+  </div>`;
+}
+function renderAdmin(){
+  if(!state.isAdmin){
+    return `<div class="card">
+      <h2>排班管理 — 需要管理密碼</h2>
+      <div class="desc">此區可編輯人員名單、固定分組、輪值順序、鎖定班表與共用支援事項,請輸入管理密碼。</div>
+      <div class="row"><input type="text" id="pinInput" placeholder="輸入管理密碼" style="width:180px;"><button class="btn" id="pinSubmit">登入管理模式</button></div>
+      <div class="tiny" style="margin-top:10px;">預設密碼為 ${DEFAULT_PIN}(登入後可於下方修改)。</div>
+    </div>`;
+  }
+  const dates = weekdayDates(state.ym);
+  const hasMonthData = Object.values(state.month.groups).some(a=>a.length>0) || Object.values(state.month.rosters).some(a=>a.length>0);
+
+  let html = shortageWarningHTML();
+  html += `<div class="card">
+    <h2>月份控制</h2>
+    <div class="row">
+      ${state.month.locked
+        ? `<span class="pill locked">🔒 已鎖定</span><button class="btn ghost small" id="unlockBtn">解除鎖定</button>`
+        : `<span class="pill open">🔓 開放中</span><button class="btn small" id="lockBtn">立即鎖定本月班表</button>`}
+      <button class="btn ghost small" id="changePinBtn">變更管理密碼</button>
+      <button class="btn ghost small" id="logoutAdminBtn">登出管理模式</button>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn ghost small" id="copyPrevBtn">📋 複製上個月固定分組與輪值名單</button>
+      <button class="btn ghost small" id="swapShiftBtn">🔁 A／B 班別整組互換(每月輪調)</button>
+    </div>
+    <hr class="sep">
+    <div class="row">
+      <label class="field">每班最低人力門檻<input type="text" id="minStaffInput" value="${state.minStaff}" style="width:60px;"></label>
+      <button class="btn small" id="saveMinStaffBtn">儲存門檻</button>
+      <span class="tiny">低於此人數時,總覽頁與排班管理會出現紅色警示,請務必通知主管。</span>
+    </div>
+  </div>`;
+
+  html += `<div class="card">
+    <h2>國定假日管理</h2>
+    <div class="desc">已內建2026年行政院人事行政總處公告之國定假日(以及2027/1/1元旦),自動不排班。若有其他年度或臨時公告的假日,可在此新增;開學日、補班日等特殊調整也可用這裡手動處理。</div>
+    <div class="row" style="margin-bottom:10px;">
+      <input type="date" id="newHoliday">
+      <button class="btn small" id="addHolidayBtn">＋ 新增假日</button>
+    </div>
+    ${state.customHolidays.length? state.customHolidays.slice().sort().map(d=>`<span class="swap-cand">${d} <span class="x" data-del-holiday="${d}">✕</span></span>`).join('') : '<div class="tiny">尚未新增任何自訂假日</div>'}
+  </div>`;
+
+  html += `<div class="card">
+    <h2>同仁名單</h2>
+    <div class="desc">新增或移除排班可選用的人員。</div>
+    <div class="row" style="margin-bottom:10px;">
+      <input type="text" id="newStaffName" placeholder="輸入姓名後按新增" style="width:160px;">
+      <button class="btn small" id="addStaffBtn">＋ 新增人員</button>
+    </div>
+    ${state.staff.length? state.staff.map(s=>`<span class="swap-cand">${s.name} <span class="x" data-del-staff="${s.id}">✕</span></span>`).join('') : '<div class="tiny">尚未新增任何人員</div>'}
+  </div>`;
+
+  html += `<div class="card">
+    <h2>調班紀錄</h2>
+    <div class="desc">例如今天A班少人,調一位B班的同仁來支援A班:選日期、選那位同仁,系統會自動把他當天算成對方班別。僅影響該天,不影響整月分組,會顯示在班表總覽,方便會計對帳。</div>
+    <div class="row" style="margin-bottom:10px;">
+      <label class="field">日期<input type="date" id="swapDate"></label>
+      <label class="field">今天調班支援的同仁<select id="swapPerson"><option value="">— 選擇 —</option>${state.staff.map(s=>`<option value="${s.id}">${s.name}(原${teamOfStaff(s.id)||'—'}班)</option>`).join('')}</select></label>
+      <button class="btn small" id="addSwapBtn" style="align-self:flex-end;">＋ 新增調班</button>
+    </div>
+    ${(state.month.shiftSwaps||[]).length? (state.month.shiftSwaps||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)).map(s=>{
+      const origTeam = teamOfStaff(s.staffId);
+      const toTeam = origTeam==='A' ? 'B' : 'A';
+      return `<div class="list-item">
+        <div><span class="name">${s.date}</span> <span class="meta">${staffName(s.staffId)} 原${origTeam}班,當天調至${toTeam}班支援</span></div>
+        <button class="btn small danger" data-del-swap="${s.id}">刪除</button>
+      </div>`;
+    }).join('') : '<div class="tiny">本月尚無調班紀錄</div>'}
+  </div>`;
+
+  html += `<div class="card"><h2>本月固定分組</h2>
+    <div class="desc">班別(時段)每月輪調一次,教室樓層通常較穩定,可視情況調整。</div>
+    <div class="grid3">${GROUP_DEFS.map(g=>chipGroupHTML(g.key,g.label)).join('')}</div>
+  </div>`;
+
+  html += `<div class="card"><h2>輪值順序名單</h2>
+    <div class="desc">值週／跟車每日往下輪一位(值週不會跟同班跟車撞名,9305/5012共4條跟車線彼此當天也不會是同一人);中午支援人力池每天輪流分配到1F/2F/3F(A、B班各自輪自己的池子);煮飯每週往下輪一位。</div>
+    <div class="grid2">
+      ${chipRosterHTML('dutyA','值週(A班)順序')}
+      ${chipRosterHTML('dutyB','值週(B班)順序')}
+      ${chipRosterHTML('escortA','跟車(A班)順序 — 同時用於9305與5012兩條路線')}
+      ${chipRosterHTML('escortB','跟車(B班)順序 — 同時用於9305與5012兩條路線')}
+      ${chipRosterHTML('lunchA','中午支援人力池(A班,輪1F/2F/3F)')}
+      ${chipRosterHTML('lunchB','中午支援人力池(B班,輪1F/2F/3F)')}
+      ${chipRosterHTML('cooking','煮飯順序(每週輪調)')}
+    </div>
+  </div>`;
+
+  html += `<div class="card"><h2>A 班 每日輪值表(可個別調整)</h2>
+    <div class="desc">系統已依上方順序名單自動排好;若當天需要臨時調整(如剛好輪到的人請假),可直接在下拉選單改選,或到「臨時請假」分頁處理。</div>
+    ${rotationTableHTML(dates, true, ROTATION_ROWS.filter(r=>r.team==='A'))}
+  </div>`;
+  html += `<div class="card"><h2>B 班 每日輪值表(可個別調整)</h2>
+    <div class="desc">系統已依上方順序名單自動排好;若當天需要臨時調整(如剛好輪到的人請假),可直接在下拉選單改選,或到「臨時請假」分頁處理。</div>
+    ${rotationTableHTML(dates, true, ROTATION_ROWS.filter(r=>r.team==='B'))}
+  </div>`;
+  html += `<div class="card"><h2>共同輪值表(可個別調整)</h2>
+    ${rotationTableHTML(dates, true, ROTATION_ROWS.filter(r=>!r.team))}
+  </div>`;
+
+  html += `<div class="card">
+    <h2>共用支援事項</h2>
+    <div class="desc">職能、美術、音樂、社區/班級、支援人力、用車登記、備註等每日文字內容。</div>
+    <div class="row" style="margin-bottom:10px;">
+      <input type="text" id="newSharedRow" placeholder="新增列名稱" style="width:170px;">
+      <button class="btn small" id="addSharedRowBtn">＋ 新增列</button>
+    </div>
+    <div class="table-scroll"><table class="grid"><thead><tr>
+      <th class="rowlabel">項目</th>
+      ${dates.map(d=>`<th class="${d.day===19?'deadline':''}">${d.day}<span class="wd">${d.wd}</span></th>`).join('')}
+    </tr></thead><tbody>
+    ${state.month.sharedRows.map(row=>`<tr><td class="rowlabel">${row} <span class="x" style="font-weight:400;" data-del-row="${row}">✕</span></td>
+      ${dates.map(d=>{
+        const v = state.month.sharedCell[row+'|'+d.date] || '';
+        return `<td><input class="celltxt" type="text" value="${v.replace(/"/g,'&quot;')}" data-shared="${row}|${d.date}"></td>`;
+      }).join('')}</tr>`).join('')}
+    </tbody></table></div>
+  </div>`;
+  return html;
+}
+
+/* ============ Tab: 臨時請假 / 換班支援 ============ */
+function renderTemp(){
+  if(state.staff.length===0){
+    return `<div class="card"><div class="empty"><div class="big">🗂️</div>尚未建立同仁名單,請先到「排班管理」新增人員。</div></div>`;
+  }
+  const staffOpts = '<option value="">— 選擇同仁 —</option>' + state.staff.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  let html = `<div class="card">
+    <h2>登記臨時請假</h2>
+    <div class="desc">用於突發、非事先排定的請假。登記後系統會自動列出當日還能支援的同仁。</div>
+    <div class="row">
+      <label class="field">同仁<select id="tlStaff">${staffOpts}</select></label>
+      <label class="field">日期<input type="date" id="tlDate"></label>
+      <label class="field">假別<select id="tlType">${LEAVE_TYPES.map(t=>`<option value="${t.label.charAt(0)}">${t.label}</option>`).join('')}</select></label>
+      <label class="field">時段<select id="tlPeriod">${LEAVE_PERIODS.map(p=>`<option value="${p.code}">${p.label}</option>`).join('')}</select></label>
+      <label class="field">備註<input type="text" id="tlNote" placeholder="選填" style="width:140px;"></label>
+    </div>
+    <button class="btn" style="margin-top:12px;" id="tlSubmit">送出臨時請假</button>
+  </div>`;
+
+  const items = state.tempLeaves.slice().sort((a,b)=> (b.ts||0)-(a.ts||0));
+  html += `<div class="card"><h2>臨時請假紀錄</h2><div class="desc">紅字表示尚未安排支援;已安排者會顯示支援人員。</div>`;
+  if(items.length===0){
+    html += `<div class="tiny">目前沒有臨時請假紀錄</div>`;
+  } else {
+    items.forEach(t=>{
+      const rotations = rotationsOf(t.staffId, t.date);
+      const busy = busyStaffIdsOn(t.date);
+      const candidates = state.staff.filter(s=> s.id!==t.staffId && !busy.has(s.id) && !leaveInfoFor(s.id,t.date).onLeave);
+      html += `<div class="list-item" style="align-items:flex-start;flex-direction:column;">
+        <div class="row" style="width:100%;justify-content:space-between;">
+          <div><span class="name">${staffName(t.staffId)}</span> <span class="meta">${t.date}・${t.type||''}${t.period||''}${t.note?('・'+t.note):''}</span></div>
+          <div>${t.status==='covered'
+            ? `<span class="pill open">已由 ${staffName(t.coverStaffId)} 支援</span>`
+            : `<span class="pill locked">尚未安排支援</span>`}</div>
+        </div>
+        ${rotations.length? `<div class="tiny" style="margin-top:6px;">⚠ 此人今天原本被排定:<b>${rotations.map(r=>r.label).join('、')}</b>(值週/跟車/中午支援都會自動列在這裡)</div>` : `<div class="tiny" style="margin-top:6px;">今天沒有排定值週、跟車或中午支援,純粹請假不影響輪值。</div>`}
+        ${t.status!=='covered' ? `
+          <div style="margin-top:8px;width:100%;">
+            <div class="tiny" style="margin-bottom:4px;">當日可支援人選(未排其他輪值、未請假):</div>
+            ${candidates.length? candidates.map(c=>`<span class="swap-cand">${c.name}</span>`).join('') : '<span class="tiny">目前找不到可支援的人員,請人工協調。</span>'}
+            <div class="row" style="margin-top:8px;">
+              <select id="coverSel-${t.id}"><option value="">選擇支援人員</option>${candidates.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+              <button class="btn small" data-mark-covered="${t.id}">標記已安排支援</button>
+              ${rotations.length? `<span class="tiny">(若選擇支援人員,將自動遞補原輪值)</span>`:''}
+            </div>
+          </div>
+        ` : ''}
+        <div class="row" style="margin-top:6px;"><button class="btn ghost small" data-del-temp="${t.id}">刪除紀錄</button></div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+  return html;
+}
+
+/* ============ 事件綁定 ============ */
+function bindGlobalEvents(){
+  document.getElementById('prevM').onclick = async ()=>{
+    if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    await new Promise(r=>setTimeout(r,0));
+    state.ym = shiftYM(state.ym,-1); await loadAllForMonth();
+    if(state.lastMonthLoadWasEmpty) toast('這個月份目前沒有讀到已存資料,如果你確定之前有填過,請重新整理頁面再切換一次');
+    render();
+  };
+  document.getElementById('nextM').onclick = async ()=>{
+    if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    await new Promise(r=>setTimeout(r,0));
+    state.ym = shiftYM(state.ym,1); await loadAllForMonth();
+    if(state.lastMonthLoadWasEmpty) toast('這個月份目前沒有讀到已存資料,如果你確定之前有填過,請重新整理頁面再切換一次');
+    render();
+  };
+  document.querySelectorAll('nav.tabs button').forEach(b=>{ b.onclick = ()=>{ state.activeTab = b.dataset.tab; render(); }; });
+}
+function bindTabEvents(){
+  if(state.activeTab==='overview') bindOverview();
+  if(state.activeTab==='myleave') bindMyLeave();
+  if(state.activeTab==='admin') bindAdmin();
+  if(state.activeTab==='temp') bindTemp();
+}
+function bindOverview(){
+  const printCompactBtn = document.getElementById('printCompactBtn');
+  if(printCompactBtn) printCompactBtn.onclick = ()=>{
+    document.body.classList.add('print-compact');
+    window.print();
+  };
+  const printFullBtn = document.getElementById('printFullBtn');
+  if(printFullBtn) printFullBtn.onclick = ()=>{
+    document.body.classList.remove('print-compact');
+    window.print();
+  };
+  document.querySelectorAll('.celltxt[data-shared]').forEach(el=>{
+    el.onchange = async ()=>{
+      const key = el.dataset.shared;
+      state.month.sharedCell[key] = el.value;
+      await saveMonth();
+      toast('已儲存');
+    };
+  });
+}
+function bindMyLeave(){
+  const sel = document.getElementById('myLeaveUser');
+  if(sel) sel.onchange = ()=>{ state.currentUserId = sel.value; render(); };
+  document.querySelectorAll('.cal .d').forEach(el=>{
+    el.onclick = ()=>{
+      if(state.month.locked) { toast('本月已鎖定,無法自行修改,請使用臨時請假'); return; }
+      if(!state.currentUserId){ toast('請先選擇姓名'); return; }
+      openLeaveModal(el.dataset.date);
+    };
+  });
+  document.querySelectorAll('[data-remove-leave]').forEach(el=>{
+    el.onclick = async ()=>{
+      const id = el.dataset.removeLeave;
+      const arr = state.month.leaves[state.currentUserId]||[];
+      state.month.leaves[state.currentUserId] = arr.filter(l=>l.id!==id);
+      await saveMonth();
+      toast('已取消該筆請假');
+      render();
+    };
+  });
+}
+function openLeaveModal(date){
+  const host = document.getElementById('leaveModalHost');
+  host.innerHTML = leaveModal(date);
+  document.getElementById('lmCancel').onclick = ()=>{ host.innerHTML=''; };
+  document.getElementById('lmSave').onclick = async ()=>{
+    const type = document.getElementById('lmType').value;
+    const period = document.getElementById('lmPeriod').value;
+
+    const floorProblems = checkFloorLeaveLimit(state.currentUserId, date);
+    if(floorProblems.length){
+      alert('⚠️ 無法送出這筆請假\n\n'+floorProblems.join('\n')+'\n\n請跟同樓層同仁協調不同天請假,或請洽管理者以「臨時請假」方式特別處理。');
+      return;
+    }
+    const lunchProblems = checkLunchPoolImpact(state.currentUserId, date);
+    if(lunchProblems.length){
+      if(!confirm('⚠️ 提醒\n\n'+lunchProblems.join('\n')+'\n\n仍要送出這筆請假嗎?')) return;
+    }
+
+    if(!state.month.leaves[state.currentUserId]) state.month.leaves[state.currentUserId] = [];
+    const arr = state.month.leaves[state.currentUserId];
+    const existingIdx = arr.findIndex(l=>l.date===date);
+    const rec = {id: existingIdx>=0? arr[existingIdx].id : uid(), date, type, period};
+    if(existingIdx>=0) arr[existingIdx] = rec; else arr.push(rec);
+    await saveMonth();
+    toast('已儲存請假申請');
+    host.innerHTML='';
+    checkShortageAndAlert(date, teamOfStaff(state.currentUserId));
+    render();
+  };
+}
+function bindAdmin(){
+  const pinSubmit = document.getElementById('pinSubmit');
+  if(pinSubmit){
+    pinSubmit.onclick = async ()=>{
+      const v = document.getElementById('pinInput').value;
+      await loadAdminPin();
+      if(v === state.adminPin){ state.isAdmin = true; render(); } else toast('密碼錯誤');
+    };
+    return;
+  }
+  const lockBtn = document.getElementById('lockBtn');
+  if(lockBtn) lockBtn.onclick = async ()=>{ state.month.locked = true; await saveMonth(); toast('已鎖定本月班表'); render(); };
+  const unlockBtn = document.getElementById('unlockBtn');
+  if(unlockBtn) unlockBtn.onclick = async ()=>{ state.month.locked = false; await saveMonth(); toast('已解除鎖定'); render(); };
+  const logoutBtn = document.getElementById('logoutAdminBtn');
+  if(logoutBtn) logoutBtn.onclick = ()=>{ state.isAdmin = false; render(); };
+  const changePinBtn = document.getElementById('changePinBtn');
+  if(changePinBtn) changePinBtn.onclick = async ()=>{
+    const np = prompt('請輸入新的管理密碼');
+    if(np){ state.adminPin = np; await safeSet('admin-pin', np, true); toast('已更新管理密碼'); }
+  };
+  const saveMinStaffBtn = document.getElementById('saveMinStaffBtn');
+  if(saveMinStaffBtn) saveMinStaffBtn.onclick = async ()=>{
+    const v = Number(document.getElementById('minStaffInput').value);
+    if(!v || v<1){ toast('請輸入有效的人數'); return; }
+    state.minStaff = v; await safeSet('min-staff', String(v), true);
+    toast('已更新最低人力門檻為 '+v+' 人'); render();
+  };
+  const copyPrevBtn = document.getElementById('copyPrevBtn');
+  if(copyPrevBtn) copyPrevBtn.onclick = async ()=>{
+    const prevYm = shiftYM(state.ym, -1);
+    const prevRaw = await safeGet('month:'+prevYm, true);
+    if(!prevRaw){ toast('上個月沒有可複製的資料'); return; }
+    const prev = JSON.parse(prevRaw);
+    if(!confirm('將複製上個月的固定分組與輪值順序名單(不含休假紀錄),確定要繼續嗎?')) return;
+    state.month.groups = JSON.parse(JSON.stringify(prev.groups || emptyGroups()));
+    state.month.rosters = JSON.parse(JSON.stringify(prev.rosters || emptyRosters()));
+    state.month.sharedRows = (prev.sharedRows || DEFAULT_SHARED_ROWS).slice();
+    await saveMonth();
+    toast('已複製上個月的固定分組與輪值名單');
+    render();
+  };
+  const swapShiftBtn = document.getElementById('swapShiftBtn');
+  if(swapShiftBtn) swapShiftBtn.onclick = async ()=>{
+    if(!confirm('將把目前 A 班與 B 班的人員名單整組互換(含值週、跟車、中午支援對應名單),僅影響本月,確定要繼續嗎?')) return;
+    const g = state.month.groups; [g.shiftA, g.shiftB] = [g.shiftB, g.shiftA];
+    const r = state.month.rosters;
+    [r.dutyA, r.dutyB] = [r.dutyB, r.dutyA];
+    [r.escortA, r.escortB] = [r.escortB, r.escortA];
+    [r.lunchA, r.lunchB] = [r.lunchB, r.lunchA];
+    await saveMonth(); toast('已互換 A／B 班別與對應輪值名單(僅本月)'); render();
+  };
+
+  const addHolidayBtn = document.getElementById('addHolidayBtn');
+  if(addHolidayBtn) addHolidayBtn.onclick = async ()=>{
+    const v = document.getElementById('newHoliday').value;
+    if(!v){ toast('請選擇日期'); return; }
+    if(!state.customHolidays.includes(v)) state.customHolidays.push(v);
+    await saveCustomHolidays();
+    toast('已新增假日'); render();
+  };
+  document.querySelectorAll('[data-del-holiday]').forEach(el=>{
+    el.onclick = async ()=>{
+      state.customHolidays = state.customHolidays.filter(d=>d!==el.dataset.delHoliday);
+      await saveCustomHolidays();
+      render();
+    };
+  });
+
+  const addStaffBtn = document.getElementById('addStaffBtn');
+  if(addStaffBtn) addStaffBtn.onclick = async ()=>{
+    const name = document.getElementById('newStaffName').value.trim();
+    if(!name){ toast('請輸入姓名'); return; }
+    state.staff.push({id:uid(), name});
+    await saveStaff(); render();
+  };
+  document.querySelectorAll('[data-del-staff]').forEach(el=>{
+    el.onclick = async ()=>{
+      if(!confirm('確定要移除此人員嗎?(不會刪除歷史排班紀錄)')) return;
+      state.staff = state.staff.filter(s=>s.id!==el.dataset.delStaff);
+      await saveStaff(); render();
+    };
+  });
+
+  const addSwapBtn = document.getElementById('addSwapBtn');
+  if(addSwapBtn) addSwapBtn.onclick = async ()=>{
+    const date = document.getElementById('swapDate').value;
+    const staffId = document.getElementById('swapPerson').value;
+    if(!date || !staffId){ toast('請選擇日期與同仁'); return; }
+    if(!state.month.shiftSwaps) state.month.shiftSwaps = [];
+    if(state.month.shiftSwaps.some(s=>s.date===date && s.staffId===staffId)){ toast('這位同仁這天已經有調班紀錄了'); return; }
+    state.month.shiftSwaps.push({id:uid(), date, staffId});
+    await saveMonth();
+    toast('已新增調班紀錄');
+    render();
+  };
+  document.querySelectorAll('[data-del-swap]').forEach(el=>{
+    el.onclick = async ()=>{
+      state.month.shiftSwaps = (state.month.shiftSwaps||[]).filter(s=>s.id!==el.dataset.delSwap);
+      await saveMonth();
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-group-add]').forEach(el=>{
+    el.onchange = async ()=>{
+      const gkey = el.dataset.groupAdd; const id = el.value;
+      if(!id) return;
+      if(!state.month.groups[gkey].includes(id)) state.month.groups[gkey].push(id);
+      await saveMonth(); render();
+    };
+  });
+  document.querySelectorAll('[data-group-remove]').forEach(el=>{
+    el.onclick = async ()=>{
+      const [gkey,id] = el.dataset.groupRemove.split('|');
+      state.month.groups[gkey] = state.month.groups[gkey].filter(x=>x!==id);
+      await saveMonth(); render();
+    };
+  });
+  document.querySelectorAll('[data-roster-add]').forEach(el=>{
+    el.onchange = async ()=>{
+      const rkey = el.dataset.rosterAdd; const id = el.value;
+      if(!id) return;
+      state.month.rosters[rkey].push(id);
+      await saveMonth(); render();
+    };
+  });
+  document.querySelectorAll('[data-roster-remove]').forEach(el=>{
+    el.onclick = async ()=>{
+      const [rkey,idxStr] = el.dataset.rosterRemove.split('|'); const idx = Number(idxStr);
+      state.month.rosters[rkey].splice(idx,1);
+      await saveMonth(); render();
+    };
+  });
+  document.querySelectorAll('[data-roster-up]').forEach(el=>{
+    el.onclick = async ()=>{
+      const [rkey,idxStr] = el.dataset.rosterUp.split('|'); const idx = Number(idxStr);
+      if(idx<=0) return;
+      const arr = state.month.rosters[rkey];
+      [arr[idx-1],arr[idx]] = [arr[idx],arr[idx-1]];
+      await saveMonth(); render();
+    };
+  });
+  document.querySelectorAll('[data-roster-down]').forEach(el=>{
+    el.onclick = async ()=>{
+      const [rkey,idxStr] = el.dataset.rosterDown.split('|'); const idx = Number(idxStr);
+      const arr = state.month.rosters[rkey];
+      if(idx>=arr.length-1) return;
+      [arr[idx+1],arr[idx]] = [arr[idx],arr[idx+1]];
+      await saveMonth(); render();
+    };
+  });
+
+  document.querySelectorAll('[data-set-anchor]').forEach(el=>{
+    el.onclick = async ()=>{
+      const rkey = el.dataset.setAnchor;
+      const dateEl = document.getElementById('anchorDate-'+rkey);
+      const personEl = document.getElementById('anchorPerson-'+rkey);
+      const date = dateEl.value; const staffId = personEl.value;
+      if(!date || !staffId){ toast('請選擇日期與人員'); return; }
+      const roster = state.month.rosters[rkey] || [];
+      const pos = roster.indexOf(staffId);
+      if(pos<0){ toast('此人不在名單內'); return; }
+      const freq = ROSTER_FREQ[rkey] || 'day';
+      const rawIdx = freq==='week' ? globalWeekIndex(date) : globalWeekdayIndex(date);
+      const n = roster.length;
+      let offset = (pos - rawIdx) % n;
+      if(offset<0) offset += n;
+      state.rotationOffsets[rkey] = offset;
+      await saveRotationOffsets();
+      toast('已設定輪值起點,之後會依此接續輪替');
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-rot]').forEach(el=>{
+    el.onchange = async ()=>{
+      const [rowKey,date] = el.dataset.rot.split('|');
+      setOverride(rowKey, date, el.value);
+      await saveMonth(); render();
+    };
+  });
+  document.querySelectorAll('[data-clear-rot]').forEach(el=>{
+    el.onclick = async ()=>{
+      const [rowKey,date] = el.dataset.clearRot.split('|');
+      setOverride(rowKey, date, '');
+      await saveMonth(); render();
+    };
+  });
+
+  const addSharedRowBtn = document.getElementById('addSharedRowBtn');
+  if(addSharedRowBtn) addSharedRowBtn.onclick = async ()=>{
+    const input = document.getElementById('newSharedRow');
+    const v = input.value.trim();
+    if(!v){ toast('請輸入列名稱'); return; }
+    if(state.month.sharedRows.includes(v)){ toast('已存在相同名稱的列'); return; }
+    state.month.sharedRows.push(v);
+    await saveMonth(); render();
+  };
+  document.querySelectorAll('[data-del-row]').forEach(el=>{
+    el.onclick = async ()=>{
+      const row = el.dataset.delRow;
+      state.month.sharedRows = state.month.sharedRows.filter(r=>r!==row);
+      Object.keys(state.month.sharedCell).forEach(k=>{ if(k.startsWith(row+'|')) delete state.month.sharedCell[k]; });
+      await saveMonth(); render();
+    };
+  });
+  document.querySelectorAll('.celltxt[data-shared]').forEach(el=>{
+    el.onchange = async ()=>{
+      const key = el.dataset.shared;
+      state.month.sharedCell[key] = el.value;
+      await saveMonth();
+    };
+  });
+}
+function bindTemp(){
+  const submitBtn = document.getElementById('tlSubmit');
+  if(submitBtn) submitBtn.onclick = async ()=>{
+    const staffId = document.getElementById('tlStaff').value;
+    const date = document.getElementById('tlDate').value;
+    const type = document.getElementById('tlType').value;
+    const period = document.getElementById('tlPeriod').value;
+    const note = document.getElementById('tlNote').value.trim();
+    if(!staffId || !date){ toast('請選擇同仁與日期'); return; }
+    state.tempLeaves.push({id:uid(), staffId, date, type, period, note, status:'pending', ts:Date.now()});
+    await saveTempLeaves();
+    toast('已登記臨時請假');
+    const floorProblems = checkFloorLeaveLimit(staffId, date);
+    if(floorProblems.length){
+      alert('⚠️ 樓層人力提醒\n\n'+floorProblems.join('\n')+'\n\n這是臨時請假,系統仍會登記,但請務必留意該樓層當天人力,必要時安排支援。');
+    }
+    const lunchProblems = checkLunchPoolImpact(staffId, date);
+    if(lunchProblems.length){
+      alert('⚠️ 中午支援人力提醒\n\n'+lunchProblems.join('\n'));
+    }
+    checkShortageAndAlert(date, teamOfStaff(staffId));
+    render();
+  };
+  document.querySelectorAll('[data-mark-covered]').forEach(el=>{
+    el.onclick = async ()=>{
+      const id = el.dataset.markCovered;
+      const sel = document.getElementById('coverSel-'+id);
+      const coverId = sel ? sel.value : '';
+      if(!coverId){ toast('請先選擇支援人員'); return; }
+      const rec = state.tempLeaves.find(t=>t.id===id);
+      rec.status = 'covered'; rec.coverStaffId = coverId;
+      const rotations = rotationsOf(rec.staffId, rec.date);
+      rotations.forEach(r=> setOverride(r.key, rec.date, coverId));
+      await Promise.all([saveTempLeaves(), saveMonth()]);
+      toast('已安排支援並更新輪值');
+      render();
+    };
+  });
+  document.querySelectorAll('[data-del-temp]').forEach(el=>{
+    el.onclick = async ()=>{
+      state.tempLeaves = state.tempLeaves.filter(t=>t.id!==el.dataset.delTemp);
+      await saveTempLeaves(); render();
+    };
+  });
+}
+
+/* ============ 初始化 ============ */
+window.addEventListener('afterprint', ()=> document.body.classList.remove('print-compact'));
+async function init(){
+  if(!window.storage || typeof window.storage.get !== 'function'){
+    showStorageUnavailableWarning();
+  }
+  await loadStaff();
+  if(state.staff.length===0){
+    state.staff = SEED_STAFF_NAMES.map(name=>({id:uid(), name}));
+    await saveStaff();
+  }
+  // 這幾項彼此不互相依賴,平行讀取以縮短載入時間(原本是一項一項依序等待)
+  await Promise.all([
+    loadAdminPin(),
+    loadMinStaff(),
+    loadRotationOffsets(),
+    loadCustomHolidays(),
+    loadAllForMonth()
+  ]);
+  state.ready = true;
+  render();
+}
+if(window.__storageReady){
+  init();
+}else{
+  window.addEventListener('storage-ready', init, {once:true});
+  setTimeout(()=>{
+    if(!window.__storageReady){
+      document.getElementById('app').innerHTML = `<div style="padding:40px 20px;text-align:center;color:#95332E;">
+        <div style="font-size:32px;margin-bottom:12px;">⚠️</div>
+        <div style="font-weight:700;font-size:16px;margin-bottom:10px;">雲端連線逾時,無法載入</div>
+        <div style="font-size:13px;color:#6E7871;line-height:1.7;">
+          可能原因:<br>
+          1. 目前是用 LINE / Instagram 等 App 內建瀏覽器打開,請改用 Safari 或 Chrome 直接開啟這個網址<br>
+          2. 網路連線不穩定,請檢查網路後重新整理<br>
+          3. 瀏覽器擴充功能(如廣告攔截器)擋住了連線
+        </div>
+      </div>`;
+    }
+  }, 8000);
+}
+</script>
+</body>
+</html>
