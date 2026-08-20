@@ -374,6 +374,15 @@ function applyOrphanRepair(mapping){
   if(m.shiftSwaps) m.shiftSwaps.forEach(s=>{ if(mapping[s.staffId]) s.staffId = mapping[s.staffId]; });
   (state.tempLeaves||[]).forEach(t=>{ if(mapping[t.staffId]) t.staffId = mapping[t.staffId]; });
 }
+function deleteOrphanId(id){
+  const m = state.month;
+  if(m.groups) Object.keys(m.groups).forEach(k=>{ m.groups[k] = (m.groups[k]||[]).filter(x=>x!==id); });
+  if(m.rosters) Object.keys(m.rosters).forEach(k=>{ m.rosters[k] = (m.rosters[k]||[]).filter(x=>x!==id); });
+  if(m.leaves && m.leaves[id]) delete m.leaves[id];
+  if(m.assign) Object.keys(m.assign).forEach(k=>{ if(m.assign[k]===id) delete m.assign[k]; });
+  if(m.shiftSwaps) m.shiftSwaps = m.shiftSwaps.filter(s=>s.staffId!==id);
+  state.tempLeaves = (state.tempLeaves||[]).filter(t=>t.staffId!==id);
+}
 function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36); }
 function idsFromNames(names){ return names.map(n=>{const s=state.staff.find(x=>x.name===n); return s?s.id:null;}).filter(Boolean); }
 
@@ -1195,6 +1204,7 @@ function renderAdmin(){
           <option value="">— 這是誰? —</option>
           ${state.staff.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
         </select>
+        <button class="btn small danger" data-delete-orphan="${id}">🗑️ 不確定,直接刪除這筆</button>
       </div>`).join('')}
       <button class="btn small" id="applyOrphanRepairBtn" style="margin-top:8px;">套用修復(要一個個選)</button>
       <button class="btn small ghost" id="resetToDefaultBtn" style="margin-top:8px;">🔄 只重設本月為預設名單(較快,之後再手動微調當月差異)</button>
@@ -1503,6 +1513,17 @@ function bindAdmin(){
     [r.lunchA, r.lunchB] = [r.lunchB, r.lunchA];
     await saveMonth(); toast('已互換 A／B 班別與對應輪值名單(僅本月)'); render();
   };
+
+  document.querySelectorAll('[data-delete-orphan]').forEach(el=>{
+    el.onclick = async ()=>{
+      const id = el.dataset.deleteOrphan;
+      if(!confirm('確定要直接刪除這筆對不到人的資料嗎?(不確定是誰,乾脆捨棄,以後同仁若發現自己的紀錄不見了,可以再幫他補登記)')) return;
+      deleteOrphanId(id);
+      await Promise.all([saveMonth(), saveTempLeaves()]);
+      toast('已刪除');
+      render();
+    };
+  });
 
   const applyOrphanRepairBtn = document.getElementById('applyOrphanRepairBtn');
   if(applyOrphanRepairBtn) applyOrphanRepairBtn.onclick = async ()=>{
