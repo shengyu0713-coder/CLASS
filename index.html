@@ -302,6 +302,7 @@ let state = {
   minStaff: DEFAULT_MIN_STAFF,
   rotationOffsets: {},
   customHolidays: [],
+  orphanLeaveBackup: [],
 };
 
 function currentYM(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -336,8 +337,83 @@ function toast(msg){
   window.__toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
 }
 function staffName(id){ const s = state.staff.find(x=>x.id===id); return s ? s.name : (id||''); }
+// ============ 資料修復工具:掃描本月資料裡找不到對應同仁的「孤兒ID」 ============
+function scanOrphanedIds(){
+  const validIds = new Set(state.staff.map(s=>s.id));
+  const found = {};
+  const mark = (id)=>{
+    if(!id) return;
+    if(validIds.has(id)) return;
+    found[id] = (found[id]||0)+1;
+  };
+  const m = state.month;
+  if(m.groups) Object.values(m.groups).forEach(arr=> (arr||[]).forEach(mark));
+  if(m.rosters) Object.values(m.rosters).forEach(arr=> (arr||[]).forEach(mark));
+  if(m.leaves) Object.keys(m.leaves).forEach(mark);
+  if(m.assign) Object.values(m.assign).forEach(mark);
+  if(m.shiftSwaps) m.shiftSwaps.forEach(s=>mark(s.staffId));
+  (state.tempLeaves||[]).forEach(t=>mark(t.staffId));
+  return found;
+}
+function applyOrphanRepair(mapping){
+  const remap = (id)=> mapping[id] || id;
+  const dedupe = (arr)=> arr.filter((v,i)=>arr.indexOf(v)===i);
+  const m = state.month;
+  if(m.groups) Object.keys(m.groups).forEach(k=>{ m.groups[k] = dedupe((m.groups[k]||[]).map(remap)); });
+  if(m.rosters) Object.keys(m.rosters).forEach(k=>{ m.rosters[k] = dedupe((m.rosters[k]||[]).map(remap)); });
+  if(m.leaves){
+    const newLeaves = {};
+    Object.keys(m.leaves).forEach(oldId=>{
+      const newId = remap(oldId);
+      if(!newLeaves[newId]) newLeaves[newId] = [];
+      newLeaves[newId] = newLeaves[newId].concat(m.leaves[oldId]);
+    });
+    m.leaves = newLeaves;
+  }
+  if(m.assign) Object.keys(m.assign).forEach(k=>{ if(mapping[m.assign[k]]) m.assign[k] = mapping[m.assign[k]]; });
+  if(m.shiftSwaps) m.shiftSwaps.forEach(s=>{ if(mapping[s.staffId]) s.staffId = mapping[s.staffId]; });
+  (state.tempLeaves||[]).forEach(t=>{ if(mapping[t.staffId]) t.staffId = mapping[t.staffId]; });
+}
 function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36); }
 function idsFromNames(names){ return names.map(n=>{const s=state.staff.find(x=>x.name===n); return s?s.id:null;}).filter(Boolean); }
+
+async function bulkRepairYear(year){
+  const validIds = new Set(state.staff.map(s=>s.id));
+  const fixedMonths = [];
+  const stillNeedsLeaveCheck = [];
+  for(let m=1;m<=12;m++){
+    const ym = year+'-'+String(m).padStart(2,'0');
+    const raw = await safeGet('month:'+ym, true);
+    if(!raw) continue;
+    let data;
+    try{ data = JSON.parse(raw); }catch(e){ continue; }
+    let hasOrphanGroup = false;
+    const checkArr = (arr)=>{ (arr||[]).forEach(id=>{ if(id && !validIds.has(id)) hasOrphanGroup = true; }); };
+    if(data.groups) Object.values(data.groups).forEach(checkArr);
+    if(data.rosters) Object.values(data.rosters).forEach(checkArr);
+    if(!hasOrphanGroup) continue;
+    const orphanLeaveDetails = [];
+    if(data.leaves){
+      Object.keys(data.leaves).forEach(id=>{
+        if(id && !validIds.has(id)){
+          (data.leaves[id]||[]).forEach(rec=> orphanLeaveDetails.push({date:rec.date, type:rec.type, period:rec.period}));
+        }
+      });
+    }
+    if(orphanLeaveDetails.length){
+      orphanLeaveDetails.sort((a,b)=>a.date.localeCompare(b.date));
+      await safeSet('orphan-leave-backup:'+ym, JSON.stringify(orphanLeaveDetails), true);
+    }
+    data.groups = emptyGroups();
+    data.rosters = emptyRosters();
+    Object.keys(DEFAULT_GROUP_NAMES).forEach(k=>{ data.groups[k] = idsFromNames(DEFAULT_GROUP_NAMES[k]); });
+    Object.keys(DEFAULT_ROSTER_NAMES).forEach(k=>{ data.rosters[k] = idsFromNames(DEFAULT_ROSTER_NAMES[k]); });
+    await safeSet('month:'+ym, JSON.stringify(data), true);
+    fixedMonths.push(ym);
+    if(orphanLeaveDetails.length) stillNeedsLeaveCheck.push(ym);
+  }
+  return {fixedMonths, stillNeedsLeaveCheck};
+}
 
 /* ============ Storage 存取 ============ */
 let _storageWarningShown = false;
@@ -390,6 +466,11 @@ async function loadMinStaff(){ const v = await safeGet('min-staff', true); state
 async function loadRotationOffsets(){ const v = await safeGet('rotation-offsets', true); state.rotationOffsets = v ? JSON.parse(v) : {}; }
 async function saveRotationOffsets(){ await safeSet('rotation-offsets', JSON.stringify(state.rotationOffsets), true); }
 async function loadCustomHolidays(){ const v = await safeGet('custom-holidays', true); state.customHolidays = v ? JSON.parse(v) : []; }
+async function loadOrphanLeaveBackup(ym){ const v = await safeGet('orphan-leave-backup:'+ym, true); state.orphanLeaveBackup = v ? JSON.parse(v) : []; }
+async function clearOrphanLeaveBackupEntry(ym, idx){
+  state.orphanLeaveBackup.splice(idx,1);
+  await safeSet('orphan-leave-backup:'+ym, JSON.stringify(state.orphanLeaveBackup), true);
+}
 async function saveCustomHolidays(){ await safeSet('custom-holidays', JSON.stringify(state.customHolidays), true); }
 
 function emptyGroups(){ return {shiftA:[],shiftB:[],floor1:[],floor2:[],floor3:[]}; }
@@ -438,7 +519,7 @@ async function loadMonth(ym){
 async function saveMonth(){ knownNonEmptyMonths.add(state.ym); return await safeSet('month:'+state.ym, JSON.stringify(state.month), true); }
 async function loadTempLeaves(ym){ const v = await safeGet('templeaves:'+ym, true); state.tempLeaves = v ? JSON.parse(v) : []; }
 async function saveTempLeaves(){ await safeSet('templeaves:'+state.ym, JSON.stringify(state.tempLeaves), true); }
-async function loadAllForMonth(){ await Promise.all([loadMonth(state.ym), loadTempLeaves(state.ym)]); }
+async function loadAllForMonth(){ await Promise.all([loadMonth(state.ym), loadTempLeaves(state.ym), loadOrphanLeaveBackup(state.ym)]); }
 
 /* ============ 請假邏輯 ============ */
 function leaveInfoFor(staffId, date){
@@ -1085,6 +1166,41 @@ function renderAdmin(){
     </div>
   </div>`;
 
+  html += `<div class="card" style="border-color:var(--primary);">
+    <h2 style="color:var(--primary-dark);">⚡ 批次修復整年度亂碼(建議先用這個)</h2>
+    <div class="desc">自動掃描 ${ymParts(state.ym).y} 年 1~12 月,把有亂碼問題的月份「分組、輪值名單」一次全部重設為預設值,乾淨的月份會自動跳過不動。這只會修分組跟輪值名單,不會動請假紀錄;如果某月份有請假紀錄剛好綁在亂碼ID上,重設後那幾筆需要你自己補回去,修復完會列出需要注意的月份。</div>
+    <button class="btn small" id="bulkRepairBtn">⚡ 一鍵批次修復 ${ymParts(state.ym).y} 年整年度</button>
+  </div>`;
+
+  if((state.orphanLeaveBackup||[]).length){
+    html += `<div class="card" style="border-color:var(--accent);background:var(--accent-soft);">
+      <h2 style="color:#8A5A1E;">📋 本月待確認的請假紀錄(共 ${state.orphanLeaveBackup.length} 筆)</h2>
+      <div class="desc">這些是修復前備份下來、原本綁在亂碼ID上的請假紀錄(不確定是誰請的)。請拿這份清單去跟同仁確認「這天是不是你請的假」,確認後到「我的請假」或這裡幫他補登記,再按右邊的「已確認,移除提醒」清掉這筆。</div>
+      ${state.orphanLeaveBackup.map((rec,idx)=>`<div class="list-item">
+        <div><span class="name">${rec.date}</span> <span class="meta">${rec.type}${rec.period}</span></div>
+        <button class="btn small ghost" data-clear-orphan-leave="${idx}">已確認,移除提醒</button>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  const orphans = scanOrphanedIds();
+  const orphanIds = Object.keys(orphans);
+  if(orphanIds.length){
+    html += `<div class="card" style="border-color:var(--danger);background:var(--danger-bg);">
+      <h2 style="color:var(--danger-strong);">🔧 偵測到 ${orphanIds.length} 個對不到同仁的舊資料(需要修復)</h2>
+      <div class="desc" style="color:var(--danger-strong);">本月資料裡有 ${orphanIds.length} 筆找不到對應同仁的紀錄(可能是之前同仁名單被誤重建造成的)。請針對每一筆選擇「這原本應該是誰」,選完按下方「套用修復」,系統會自動把本月所有用到這個ID的地方(分組、名單、請假、調班紀錄)一次修正。</div>
+      ${orphanIds.map((id,idx)=>`<div class="row" style="margin-bottom:8px;">
+        <span class="tiny" style="width:160px;word-break:break-all;">原始ID: ${id}<br>(出現 ${orphans[id]} 次)</span>
+        <select id="orphanFix-${idx}" data-orphan-id="${id}">
+          <option value="">— 這是誰? —</option>
+          ${state.staff.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+        </select>
+      </div>`).join('')}
+      <button class="btn small" id="applyOrphanRepairBtn" style="margin-top:8px;">套用修復(要一個個選)</button>
+      <button class="btn small ghost" id="resetToDefaultBtn" style="margin-top:8px;">🔄 只重設本月為預設名單(較快,之後再手動微調當月差異)</button>
+    </div>`;
+  }
+
   html += `<div class="card">
     <h2>國定假日管理</h2>
     <div class="desc">已內建2026年行政院人事行政總處公告之國定假日(以及2027/1/1元旦),自動不排班。若有其他年度或臨時公告的假日,可在此新增;開學日、補班日等特殊調整也可用這裡手動處理。</div>
@@ -1388,6 +1504,65 @@ function bindAdmin(){
     await saveMonth(); toast('已互換 A／B 班別與對應輪值名單(僅本月)'); render();
   };
 
+  const applyOrphanRepairBtn = document.getElementById('applyOrphanRepairBtn');
+  if(applyOrphanRepairBtn) applyOrphanRepairBtn.onclick = async ()=>{
+    const mapping = {};
+    document.querySelectorAll('[data-orphan-id]').forEach(sel=>{
+      const oldId = sel.dataset.orphanId;
+      const newId = sel.value;
+      if(newId) mapping[oldId] = newId;
+    });
+    if(Object.keys(mapping).length===0){ toast('請至少選擇一筆對應的同仁'); return; }
+    if(!confirm('確定要套用修復嗎?這會修改本月所有分組、名單、請假、調班紀錄裡對應的舊ID,建議修復前先確認選擇無誤。')) return;
+    applyOrphanRepair(mapping);
+    await Promise.all([saveMonth(), saveTempLeaves()]);
+    toast('已套用修復,請確認資料是否正確');
+    render();
+  };
+
+  document.querySelectorAll('[data-clear-orphan-leave]').forEach(el=>{
+    el.onclick = async ()=>{
+      const idx = Number(el.dataset.clearOrphanLeave);
+      await clearOrphanLeaveBackupEntry(state.ym, idx);
+      toast('已移除提醒');
+      render();
+    };
+  });
+
+  const bulkRepairBtn = document.getElementById('bulkRepairBtn');
+  if(bulkRepairBtn) bulkRepairBtn.onclick = async ()=>{
+    const year = ymParts(state.ym).y;
+    if(!confirm(`確定要批次掃描並修復 ${year} 年 1~12 月的分組/輪值名單亂碼嗎?\n\n只會處理「有亂碼問題」的月份,乾淨的月份不會被動到。這個動作只重設分組跟輪值名單,不會刪除請假紀錄或調班紀錄,但如果某月份的請假剛好綁在亂碼ID上,修復後那幾筆會需要你自己補回去。`)) return;
+    bulkRepairBtn.disabled = true;
+    bulkRepairBtn.textContent = '修復中,請稍候…';
+    const result = await bulkRepairYear(year);
+    bulkRepairBtn.disabled = false;
+    bulkRepairBtn.textContent = `⚡ 一鍵批次修復 ${year} 年整年度`;
+    if(result.fixedMonths.length===0){
+      toast('掃描完成,沒有發現需要修復的月份');
+    } else {
+      let msg = `已修復 ${result.fixedMonths.length} 個月份:${result.fixedMonths.join('、')}`;
+      if(result.stillNeedsLeaveCheck.length){
+        msg += `\n\n⚠️ 這幾個月份原本有請假紀錄綁在亂碼ID上,重設後可能看不到,請切到這些月份確認並補回:${result.stillNeedsLeaveCheck.join('、')}`;
+      }
+      alert(msg);
+    }
+    await loadAllForMonth();
+    render();
+  };
+
+  const resetToDefaultBtn = document.getElementById('resetToDefaultBtn');
+  if(resetToDefaultBtn) resetToDefaultBtn.onclick = async ()=>{
+    if(!confirm('確定要把本月的固定分組、輪值順序名單全部重設為預設名單嗎?\n\n這會清空目前(含亂碼)的分組跟輪值名單,改成套用系統內建的18位同仁基本設定。請假紀錄、調班紀錄、共用支援事項不會被清除。\n\n重設後,如果這個月的班別、樓層跟預設不一樣(例如做過A/B班互換),需要你自己再手動調整。')) return;
+    state.month.groups = emptyGroups();
+    state.month.rosters = emptyRosters();
+    Object.keys(DEFAULT_GROUP_NAMES).forEach(k=>{ state.month.groups[k] = idsFromNames(DEFAULT_GROUP_NAMES[k]); });
+    Object.keys(DEFAULT_ROSTER_NAMES).forEach(k=>{ state.month.rosters[k] = idsFromNames(DEFAULT_ROSTER_NAMES[k]); });
+    await saveMonth();
+    toast('已重設為預設名單,請確認並視情況手動調整');
+    render();
+  };
+
   const addHolidayBtn = document.getElementById('addHolidayBtn');
   if(addHolidayBtn) addHolidayBtn.onclick = async ()=>{
     const v = document.getElementById('newHoliday').value;
@@ -1604,8 +1779,14 @@ async function init(){
   }
   await loadStaff();
   if(state.staff.length===0){
+    const seededBefore = await safeGet('staff-seeded-marker', true);
+    if(seededBefore){
+      alert('⚠️ 讀取同仁名單失敗,已中止載入\n\n系統偵測到之前已經建立過同仁名單,但這次讀取結果是空的,很可能是網路暫時不穩定。\n\n為了避免自動重建造成資料錯亂(舊排班資料會對不到新名單),系統不會自動重新產生名單。\n\n請檢查網路連線後,重新整理頁面再試一次。');
+      return;
+    }
     state.staff = SEED_STAFF_NAMES.map(name=>({id:uid(), name}));
     await saveStaff();
+    await safeSet('staff-seeded-marker', '1', true);
   }
   // 這幾項彼此不互相依賴,平行讀取以縮短載入時間(原本是一項一項依序等待)
   await Promise.all([
